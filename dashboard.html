@@ -304,13 +304,14 @@
             updateServerSelects(data.nodes);
 
             // Check if this is the first render
-            if (currentData.nodes.length === 0) {
+            if (!simulation || currentData.nodes.length === 0) {
                 renderNetwork(data);
+                currentData = data;
             } else {
                 updateNetwork(data);
+                currentData = data;
             }
 
-            currentData = data;
             fetchStats();
         }
 
@@ -384,17 +385,33 @@
         }
 
         function updateNetwork(data) {
-            // Update node data - preserve positions from simulation's internal state
-            const simulationNodes = simulation.nodes();
-            const positionMap = new Map(simulationNodes.map(n => [n.id, { x: n.x, y: n.y, vx: n.vx, vy: n.vy }]));
+            // Preserve positions by copying from current simulation nodes to new data
+            const oldPositions = new Map();
+            if (simulation && simulation.nodes()) {
+                simulation.nodes().forEach(n => {
+                    if (n.x !== undefined && n.y !== undefined) {
+                        oldPositions.set(n.id, {
+                            x: n.x,
+                            y: n.y,
+                            vx: n.vx || 0,
+                            vy: n.vy || 0,
+                            fx: n.fx,
+                            fy: n.fy
+                        });
+                    }
+                });
+            }
 
+            // Apply preserved positions to new data
             data.nodes.forEach(n => {
-                const pos = positionMap.get(n.id);
-                if (pos) {
-                    n.x = pos.x;
-                    n.y = pos.y;
-                    n.vx = pos.vx;
-                    n.vy = pos.vy;
+                const oldPos = oldPositions.get(n.id);
+                if (oldPos) {
+                    n.x = oldPos.x;
+                    n.y = oldPos.y;
+                    n.vx = oldPos.vx;
+                    n.vy = oldPos.vy;
+                    if (oldPos.fx !== undefined) n.fx = oldPos.fx;
+                    if (oldPos.fy !== undefined) n.fy = oldPos.fy;
                 }
             });
 
@@ -402,6 +419,10 @@
             const nodeRadius = nodeCount > 500 ? 6 : (nodeCount > 50 ? 18 : 25);
             const fontSize = nodeCount > 500 ? 0 : (nodeCount > 50 ? 11 : 12);
 
+            // Update simulation nodes FIRST
+            simulation.nodes(data.nodes);
+
+            // Then update visual elements
             node = node.data(data.nodes, d => d.id)
                 .join(
                     enter => {
@@ -428,13 +449,12 @@
                     exit => exit.remove()
                 );
 
-            // Update link data AFTER nodes are updated
+            // Update links
             link = link.data(data.links, d => `${d.source.id || d.source}-${d.target.id || d.target}`)
                 .join("line")
                 .attr("class", "link");
 
-            // Update simulation with new data
-            simulation.nodes(data.nodes);
+            // Update link force with new links
             simulation.force("link").links(data.links);
 
             // Higher alpha to allow clusters to move together when links change
