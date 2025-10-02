@@ -111,7 +111,8 @@
             background: #16213e;
             border-radius: 8px;
             border: 2px solid #0f3460;
-            min-height: 600px;
+            min-height: 800px;
+            width: 100%;
         }
 
         .node {
@@ -221,12 +222,13 @@
     </div>
 
     <script>
-        const width = 1400;
-        const height = 600;
+        const width = window.innerWidth - 40;
+        const height = 800;
 
         const svg = d3.select("#network")
             .attr("width", width)
-            .attr("height", height);
+            .attr("height", height)
+            .attr("viewBox", `0 0 ${width} ${height}`);
 
         let simulation;
 
@@ -290,8 +292,8 @@
 
             // Adjust force parameters based on number of nodes
             const nodeCount = data.nodes.length;
-            const linkDistance = nodeCount > 50 ? 50 : 150;
-            const chargeStrength = nodeCount > 50 ? -100 : -400;
+            const linkDistance = nodeCount > 50 ? 80 : 150;
+            const chargeStrength = nodeCount > 50 ? -200 : -400;
             const collisionRadius = nodeCount > 50 ? 20 : 40;
 
             simulation = d3.forceSimulation(data.nodes)
@@ -299,8 +301,9 @@
                 .force("charge", d3.forceManyBody().strength(chargeStrength))
                 .force("center", d3.forceCenter(width / 2, height / 2))
                 .force("collision", d3.forceCollide().radius(collisionRadius))
-                .force("x", d3.forceX(width / 2).strength(0.1))
-                .force("y", d3.forceY(height / 2).strength(0.1))
+                .force("x", d3.forceX(width / 2).strength(0.05))
+                .force("y", d3.forceY(height / 2).strength(0.05))
+                .velocityDecay(0.4)
                 .alphaDecay(0.02);
 
             const link = svg.append("g")
@@ -319,8 +322,8 @@
                     .on("drag", dragged)
                     .on("end", dragended));
 
-            const nodeRadius = nodeCount > 50 ? 12 : 25;
-            const fontSize = nodeCount > 50 ? 8 : 12;
+            const nodeRadius = nodeCount > 50 ? 15 : 25;
+            const fontSize = nodeCount > 50 ? 10 : 12;
 
             node.append("circle")
                 .attr("r", nodeRadius)
