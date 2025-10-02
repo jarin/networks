@@ -212,6 +212,25 @@
             <div class="control-group">
                 <button onclick="refreshNetwork()">Refresh Network</button>
             </div>
+            <div class="control-group">
+                <button id="chaosToggle" onclick="toggleChaos()">Start Chaos Monkey</button>
+                <label style="color: #a0a0a0; margin-left: 10px;">
+                    Chaos Mode:
+                    <select id="chaosMode">
+                        <option value="mixed">Mixed (Connect & Disconnect)</option>
+                        <option value="disconnect">Disconnect Only</option>
+                        <option value="connect">Connect Only</option>
+                    </select>
+                </label>
+                <label style="color: #a0a0a0; margin-left: 10px;">
+                    Interval:
+                    <select id="chaosInterval">
+                        <option value="1000">Fast (1s)</option>
+                        <option value="2000" selected>Normal (2s)</option>
+                        <option value="5000">Slow (5s)</option>
+                    </select>
+                </label>
+            </div>
         </div>
 
         <svg id="network"></svg>
@@ -423,6 +442,77 @@
         }
 
         function refreshNetwork() {
+            fetchNetwork();
+        }
+
+        // Chaos Monkey implementation
+        let chaosInterval = null;
+        let chaosRunning = false;
+
+        function toggleChaos() {
+            const button = document.getElementById('chaosToggle');
+
+            if (chaosRunning) {
+                clearInterval(chaosInterval);
+                chaosInterval = null;
+                chaosRunning = false;
+                button.textContent = 'Start Chaos Monkey';
+                button.style.background = '#0f3460';
+            } else {
+                const interval = parseInt(document.getElementById('chaosInterval').value);
+                chaosInterval = setInterval(runChaos, interval);
+                chaosRunning = true;
+                button.textContent = 'Stop Chaos Monkey';
+                button.style.background = '#ef4444';
+            }
+        }
+
+        async function runChaos() {
+            const mode = document.getElementById('chaosMode').value;
+            const response = await fetch('/api/network');
+            const data = await response.json();
+
+            if (data.nodes.length === 0) return;
+
+            let action;
+            if (mode === 'mixed') {
+                action = Math.random() > 0.5 ? 'connect' : 'disconnect';
+            } else if (mode === 'connect') {
+                action = 'connect';
+            } else {
+                action = 'disconnect';
+            }
+
+            if (action === 'disconnect' && data.nodes.length > 0) {
+                // Randomly disconnect a server
+                const randomServer = data.nodes[Math.floor(Math.random() * data.nodes.length)];
+                await fetch('/api/disconnect', {
+                    method: 'POST',
+                    body: JSON.stringify({ server: randomServer.id })
+                });
+                console.log(`Chaos: Disconnected server ${randomServer.name} (${randomServer.id})`);
+            } else if (action === 'connect' && data.nodes.length >= 2) {
+                // Randomly connect two servers
+                const a = data.nodes[Math.floor(Math.random() * data.nodes.length)];
+                let b = data.nodes[Math.floor(Math.random() * data.nodes.length)];
+
+                // Make sure we don't connect a server to itself
+                let attempts = 0;
+                while (b.id === a.id && attempts < 10) {
+                    b = data.nodes[Math.floor(Math.random() * data.nodes.length)];
+                    attempts++;
+                }
+
+                if (b.id !== a.id) {
+                    await fetch('/api/link', {
+                        method: 'POST',
+                        body: JSON.stringify({ from: a.id, to: b.id })
+                    });
+                    console.log(`Chaos: Connected ${a.name} (${a.id}) to ${b.name} (${b.id})`);
+                }
+            }
+
+            // Refresh the visualization
             fetchNetwork();
         }
 
