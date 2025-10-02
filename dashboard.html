@@ -111,7 +111,7 @@
             background: #16213e;
             border-radius: 8px;
             border: 2px solid #0f3460;
-            min-height: 1000px;
+            min-height: 1400px;
             width: 100%;
             display: block;
         }
@@ -254,7 +254,7 @@
 
     <script>
         const width = window.innerWidth - 80;
-        const height = 1000;
+        const height = 1400;
 
         const svg = d3.select("#network")
             .attr("width", width)
@@ -468,18 +468,31 @@
         function tick() {
             if (!simulation || !simulation.nodes()) return;
 
+            const simNodes = simulation.nodes();
+
             // Constrain nodes to viewport with padding
-            simulation.nodes().forEach(d => {
+            simNodes.forEach(d => {
                 d.x = Math.max(30, Math.min(width - 30, d.x));
                 d.y = Math.max(30, Math.min(height - 30, d.y));
             });
 
             if (link) {
-                link
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y);
+                link.attr("x1", d => {
+                    const source = typeof d.source === 'object' ? d.source : simNodes.find(n => n.id === d.source);
+                    return source ? source.x : 0;
+                })
+                .attr("y1", d => {
+                    const source = typeof d.source === 'object' ? d.source : simNodes.find(n => n.id === d.source);
+                    return source ? source.y : 0;
+                })
+                .attr("x2", d => {
+                    const target = typeof d.target === 'object' ? d.target : simNodes.find(n => n.id === d.target);
+                    return target ? target.x : 0;
+                })
+                .attr("y2", d => {
+                    const target = typeof d.target === 'object' ? d.target : simNodes.find(n => n.id === d.target);
+                    return target ? target.y : 0;
+                });
             }
 
             if (node) {
