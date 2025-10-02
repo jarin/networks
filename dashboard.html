@@ -308,14 +308,9 @@
 
             updateServerSelects(data.nodes);
 
-            // Check if this is the first render
-            if (!simulation || currentData.nodes.length === 0) {
-                renderNetwork(data);
-                currentData = data;
-            } else {
-                updateNetwork(data);
-                currentData = data;
-            }
+            // Always do full render to avoid offset issues
+            renderNetwork(data);
+            currentData = data;
 
             fetchStats();
         }
@@ -345,7 +340,10 @@
             const collisionRadius = nodeCount > 500 ? 8 : (nodeCount > 50 ? 20 : 40);
 
             simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).distance(linkDistance).strength(linkStrength))
+                .force("link", d3.forceLink(data.links)
+                    .id(d => d.id)
+                    .distance(d => linkDistance / (d.weight || 1))  // Shorter distance for higher weight
+                    .strength(d => linkStrength * (d.weight || 1) / 5))  // Stronger pull for higher weight
                 .force("charge", d3.forceManyBody().strength(chargeStrength))
                 .force("center", d3.forceCenter(width / 2, height / 2))
                 .force("collision", d3.forceCollide().radius(collisionRadius))
@@ -361,7 +359,8 @@
             link = linkGroup.selectAll("line")
                 .data(data.links)
                 .join("line")
-                .attr("class", "link");
+                .attr("class", "link")
+                .attr("stroke-width", d => Math.max(1, (d.weight || 1) / 2));  // Thicker lines for higher weight
 
             node = nodeGroup.selectAll("g")
                 .data(data.nodes, d => d.id)

@@ -34,10 +34,17 @@ pub const Server = struct {
     }
 };
 
+pub const Link = struct {
+    from: u32,
+    to: u32,
+    weight: f32,
+};
+
 pub const Network = struct {
     allocator: Allocator,
     lct: LinkCutTree,
     servers: std.ArrayList(Server),
+    links: std.ArrayList(Link),
     next_id: u32,
     links_count: u32,
 
@@ -46,6 +53,7 @@ pub const Network = struct {
             .allocator = allocator,
             .lct = LinkCutTree.init(allocator),
             .servers = std.ArrayList(Server).init(allocator),
+            .links = std.ArrayList(Link).init(allocator),
             .next_id = 0,
             .links_count = 0,
         };
@@ -56,6 +64,7 @@ pub const Network = struct {
             self.lct.destroy_node(server.lct_node);
         }
         self.servers.deinit();
+        self.links.deinit();
     }
 
     pub fn add_server(self: *Network, name: []const u8, status: ServerStatus) !u32 {
@@ -73,6 +82,17 @@ pub const Network = struct {
 
         if (!self.lct.connected(server_a.lct_node, server_b.lct_node)) {
             self.lct.link(server_a.lct_node, server_b.lct_node);
+
+            // Add link with random weight (simulating flow)
+            var prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
+            const random = prng.random();
+            const weight = random.float(f32) * 10.0 + 0.5; // Random weight between 0.5 and 10.5
+
+            try self.links.append(Link{
+                .from = id_a,
+                .to = id_b,
+                .weight = weight,
+            });
             self.links_count += 1;
         }
     }
@@ -80,8 +100,19 @@ pub const Network = struct {
     pub fn disconnect_server(self: *Network, id: u32) !void {
         const server = self.get_server(id) orelse return error.ServerNotFound;
         self.lct.cut(server.lct_node);
-        if (self.links_count > 0) {
-            self.links_count -= 1;
+
+        // Remove all links involving this server
+        var i: usize = 0;
+        while (i < self.links.items.len) {
+            const link = self.links.items[i];
+            if (link.from == id or link.to == id) {
+                _ = self.links.swapRemove(i);
+                if (self.links_count > 0) {
+                    self.links_count -= 1;
+                }
+            } else {
+                i += 1;
+            }
         }
     }
 
