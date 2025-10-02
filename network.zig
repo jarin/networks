@@ -85,7 +85,7 @@ pub const Network = struct {
     }
 
     pub fn path_length(self: *Network, server_a: *Server, server_b: *Server) ?u32 {
-        if (const size = self.lct.path_size(server_a.lct_node, server_b.lct_node)) {
+        if (self.lct.path_size(server_a.lct_node, server_b.lct_node)) |size| {
             return size - 1; // Convert node count to edge count
         }
         return null;

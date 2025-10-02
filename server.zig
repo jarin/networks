@@ -109,7 +109,7 @@ fn send_network_state(allocator: std.mem.Allocator, network: *Network, stream: s
 
     var link_count: usize = 0;
     for (network.servers.items, 0..) |*server_a, i| {
-        for (network.servers.items[i + 1 ..], i + 1..) |*server_b, j| {
+        for (network.servers.items[i + 1 ..]) |*server_b| {
             if (network.are_connected(server_a, server_b)) {
                 if (link_count > 0) try writer.writeAll(",");
                 try std.fmt.format(writer, "{{\"source\":{},\"target\":{}}}", .{ server_a.id, server_b.id });
