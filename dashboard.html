@@ -136,9 +136,17 @@
         }
 
         .link {
-            stroke: #4a5a7a;
+            stroke: #ffffff;
             stroke-width: 2px;
-            opacity: 0.6;
+            opacity: 0.4;
+            stroke-dasharray: 5, 5;
+            animation: dash 20s linear infinite;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -100;
+            }
         }
 
         .status-online { fill: #4ade80; }
