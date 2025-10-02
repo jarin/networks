@@ -259,6 +259,7 @@ fn disconnect_server_endpoint(allocator: std.mem.Allocator, network: *Network, s
 }
 
 fn bulk_add_servers_endpoint(allocator: std.mem.Allocator, network: *Network, stream: std.net.Stream, body: []const u8) !void {
+    _ = allocator;
     const count_start = std.mem.indexOf(u8, body, "\"count\":");
     if (count_start == null) {
         try send_error(stream, "Invalid JSON - missing count");
