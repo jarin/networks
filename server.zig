@@ -26,90 +26,8 @@ pub fn main() !void {
     std.debug.print("  POST /api/link           - Connect servers (JSON: {{\"from\": 0, \"to\": 1}})\n", .{});
     std.debug.print("  POST /api/disconnect     - Disconnect server (JSON: {{\"server\": 0}})\n", .{});
     std.debug.print("  GET  /                   - Visualization dashboard\n", .{});
-    std.debug.print("\nInitializing network with 1000 servers...\n", .{});
-
-    const num_servers = 1000;
-    var server_ids: [1000]u32 = undefined;
-    var prng = std.Random.DefaultPrng.init(42);
-    const random = prng.random();
-
-    var name_buf: [32]u8 = undefined;
-
-    // Create 1000 servers with generated names and random status
-    for (0..num_servers) |i| {
-        const status_roll = random.uintLessThan(u8, 100);
-        const status: ServerStatus = if (status_roll < 75)
-            .online
-        else if (status_roll < 90)
-            .degraded
-        else
-            .offline;
-
-        // Generate name based on index
-        const name = if (i < 50) blk: {
-            // First 50: Disney-themed
-            const disney = [_][]const u8{ "mickey", "minnie", "donald", "daisy", "goofy", "pluto", "ariel", "belle", "jasmine", "aurora", "mulan", "tiana", "merida", "elsa", "anna", "moana", "rapunzel", "cinderella", "snow-white", "pocahontas", "simba", "nala", "timon", "pumbaa", "mufasa", "scar", "woody", "buzz", "jessie", "rex", "hamm", "slinky", "sulley", "mike", "boo", "nemo", "dory", "marlin", "crush", "bruce", "lightning", "mater", "sally", "doc", "ramone", "flo", "wall-e", "eve", "captain", "auto" };
-            break :blk disney[i];
-        } else if (i < 100) blk: {
-            // Next 50: Norse-themed
-            const norse = [_][]const u8{ "odin", "thor", "loki", "freya", "frigg", "baldur", "tyr", "heimdall", "hela", "vidar", "vali", "bragi", "idun", "njord", "skadi", "frey", "freyja", "sif", "magni", "modi", "forseti", "hodr", "hermod", "ullr", "vili", "ve", "buri", "bor", "bestla", "ymir", "fenrir", "jormungandr", "sleipnir", "ratatoskr", "hugin", "munin", "geri", "freki", "tanngrisnir", "tanngnjost", "gullinbursti", "hildisvini", "heidrun", "eikthyrnir", "arvak", "alsvid", "skinfaxi", "hrimfaxi", "garm", "nidhogg" };
-            break :blk norse[i - 50];
-        } else blk: {
-            // Rest: Generated names
-            const name_str = std.fmt.bufPrint(&name_buf, "node-{d}", .{i}) catch "unknown";
-            break :blk name_str;
-        };
-
-        server_ids[i] = try network.add_server(name, status);
-
-        if ((i + 1) % 100 == 0) {
-            std.debug.print("Created {}/{} servers...\n", .{ i + 1, num_servers });
-        }
-    }
-
-    std.debug.print("Building network topology...\n", .{});
-
-    // Create a scalable topology:
-    // 1. Ring topology for base connectivity
-    for (0..num_servers) |i| {
-        const next = (i + 1) % num_servers;
-        try network.connect_servers(server_ids[i], server_ids[next]);
-    }
-
-    std.debug.print("Ring topology created ({} links)\n", .{num_servers});
-
-    // 2. Add random shortcuts for small-world properties (5% of nodes)
-    const shortcuts = num_servers / 20;
-    for (0..shortcuts) |_| {
-        const a = random.uintLessThan(usize, num_servers);
-        var b = random.uintLessThan(usize, num_servers);
-        var attempts: u32 = 0;
-        while (b == a and attempts < 10) : (attempts += 1) {
-            b = random.uintLessThan(usize, num_servers);
-        }
-        if (b != a) {
-            network.connect_servers(server_ids[a], server_ids[b]) catch {};
-        }
-    }
-
-    std.debug.print("Added {} random shortcuts\n", .{shortcuts});
-
-    // 3. Create hub nodes (every 50th server connects to nearby nodes)
-    var hubs: usize = 0;
-    var hub: usize = 0;
-    while (hub < num_servers) : (hub += 50) {
-        for (0..5) |offset| {
-            const target = (hub + offset + 1) % num_servers;
-            if (target != hub) {
-                network.connect_servers(server_ids[hub], server_ids[target]) catch {};
-            }
-        }
-        hubs += 1;
-    }
-
-    std.debug.print("Created {} hub nodes\n", .{hubs});
-    std.debug.print("Network topology complete with ~{} total links\n", .{num_servers + shortcuts + (hubs * 5)});
-    std.debug.print("Ready for chaos monkey testing!\n\n", .{});
+    std.debug.print("\nNetwork initialized - ready for interactive node creation!\n", .{});
+    std.debug.print("Use the web UI to add nodes dynamically\n\n", .{});
 
     while (true) {
         const connection = try listener.accept();
@@ -149,6 +67,8 @@ fn handle_request(allocator: std.mem.Allocator, network: *Network, connection: s
         try link_servers_endpoint(allocator, network, connection.stream, body);
     } else if (std.mem.eql(u8, method, "POST") and std.mem.startsWith(u8, path, "/api/disconnect")) {
         try disconnect_server_endpoint(allocator, network, connection.stream, body);
+    } else if (std.mem.eql(u8, method, "POST") and std.mem.startsWith(u8, path, "/api/bulk-add")) {
+        try bulk_add_servers_endpoint(allocator, network, connection.stream, body);
     } else if (std.mem.eql(u8, method, "GET") and std.mem.eql(u8, path, "/")) {
         try send_html_dashboard(connection.stream);
     } else {
@@ -334,6 +254,61 @@ fn disconnect_server_endpoint(allocator: std.mem.Allocator, network: *Network, s
     const json = "{\"success\":true}";
     var response_buf: [256]u8 = undefined;
     const response = try std.fmt.bufPrint(&response_buf, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{s}", .{ json.len, json });
+
+    try stream.writeAll(response);
+}
+
+fn bulk_add_servers_endpoint(allocator: std.mem.Allocator, network: *Network, stream: std.net.Stream, body: []const u8) !void {
+    const count_start = std.mem.indexOf(u8, body, "\"count\":");
+    if (count_start == null) {
+        try send_error(stream, "Invalid JSON - missing count");
+        return;
+    }
+
+    const count_value_start = count_start.? + 8;
+    var count_end = count_value_start;
+    while (count_end < body.len and body[count_end] >= '0' and body[count_end] <= '9') : (count_end += 1) {}
+
+    const count = try std.fmt.parseInt(u32, body[count_value_start..count_end], 10);
+    if (count > 10000) {
+        try send_error(stream, "Count too large (max 10000)");
+        return;
+    }
+
+    const disney = [_][]const u8{ "mickey", "minnie", "donald", "daisy", "goofy", "pluto", "ariel", "belle", "jasmine", "aurora", "mulan", "tiana", "merida", "elsa", "anna", "moana", "rapunzel", "cinderella", "snow-white", "pocahontas", "simba", "nala", "timon", "pumbaa", "mufasa", "scar", "woody", "buzz", "jessie", "rex", "hamm", "slinky", "sulley", "mike", "boo", "nemo", "dory", "marlin", "crush", "bruce", "lightning", "mater", "sally", "doc", "ramone", "flo", "wall-e", "eve", "captain", "auto" };
+    const norse = [_][]const u8{ "odin", "thor", "loki", "freya", "frigg", "baldur", "tyr", "heimdall", "hela", "vidar", "vali", "bragi", "idun", "njord", "skadi", "frey", "freyja", "sif", "magni", "modi", "forseti", "hodr", "hermod", "ullr", "vili", "ve", "buri", "bor", "bestla", "ymir", "fenrir", "jormungandr", "sleipnir", "ratatoskr", "hugin", "munin", "geri", "freki", "tanngrisnir", "tanngnjost", "gullinbursti", "hildisvini", "heidrun", "eikthyrnir", "arvak", "alsvid", "skinfaxi", "hrimfaxi", "garm", "nidhogg" };
+
+    var prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
+    const random = prng.random();
+
+    var name_buf: [64]u8 = undefined;
+    var created: u32 = 0;
+
+    for (0..count) |i| {
+        const status_roll = random.uintLessThan(u8, 100);
+        const status: ServerStatus = if (status_roll < 75) .online else if (status_roll < 90) .degraded else .offline;
+
+        const name = if (i < disney.len) blk: {
+            break :blk disney[i];
+        } else if (i < disney.len + norse.len) blk: {
+            break :blk norse[i - disney.len];
+        } else blk: {
+            // Combine names for unique identifiers
+            const d_idx = i % disney.len;
+            const n_idx = (i / disney.len) % norse.len;
+            const name_str = std.fmt.bufPrint(&name_buf, "{s}-{s}", .{ disney[d_idx], norse[n_idx] }) catch "node";
+            break :blk name_str;
+        };
+
+        _ = try network.add_server(name, status);
+        created += 1;
+    }
+
+    var response_buf: [256]u8 = undefined;
+    const json = try std.fmt.bufPrint(&response_buf, "{{\"created\":{},\"total\":{}}}", .{ created, network.servers.items.len });
+
+    var http_buf: [512]u8 = undefined;
+    const response = try std.fmt.bufPrint(&http_buf, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{s}", .{ json.len, json });
 
     try stream.writeAll(response);
 }

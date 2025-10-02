@@ -192,13 +192,18 @@
         <div class="controls">
             <h2>Network Operations</h2>
             <div class="control-group">
+                <input type="number" id="bulkCount" placeholder="Number of nodes" value="10" min="1" max="10000" style="width: 150px;">
+                <button onclick="bulkAddServers()">Bulk Add Nodes</button>
+                <span style="color: #a0a0a0; margin-left: 10px; font-size: 12px;">Names: Disney/Norse mythology</span>
+            </div>
+            <div class="control-group">
                 <input type="text" id="serverName" placeholder="Server name (e.g., web-3)">
                 <select id="serverStatus">
                     <option value="online">Online</option>
                     <option value="degraded">Degraded</option>
                     <option value="offline">Offline</option>
                 </select>
-                <button onclick="addServer()">Add Server</button>
+                <button onclick="addServer()">Add Single Server</button>
             </div>
             <div class="control-group">
                 <select id="fromServer"></select>
@@ -515,6 +520,29 @@
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
+        }
+
+        async function bulkAddServers() {
+            const count = parseInt(document.getElementById('bulkCount').value);
+
+            if (!count || count < 1) {
+                alert('Please enter a valid number of nodes');
+                return;
+            }
+
+            if (count > 10000) {
+                alert('Maximum 10000 nodes at once');
+                return;
+            }
+
+            const response = await fetch('/api/bulk-add', {
+                method: 'POST',
+                body: JSON.stringify({ count })
+            });
+
+            const result = await response.json();
+            console.log(`Bulk added ${result.created} nodes, total: ${result.total}`);
+            fetchNetwork();
         }
 
         async function addServer() {
