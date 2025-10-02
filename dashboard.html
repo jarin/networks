@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Connectivity Monitor</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00d9ff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #0f3460;
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #a0a0a0;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #00d9ff;
+        }
+
+        .controls {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #0f3460;
+        }
+
+        .controls h2 {
+            margin-bottom: 15px;
+            color: #00d9ff;
+            font-size: 18px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        input, button {
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid #0f3460;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 14px;
+        }
+
+        button {
+            cursor: pointer;
+            background: #0f3460;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #00d9ff;
+            color: #1a1a2e;
+        }
+
+        select {
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid #0f3460;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 14px;
+        }
+
+        #network {
+            background: #16213e;
+            border-radius: 8px;
+            border: 2px solid #0f3460;
+            min-height: 600px;
+        }
+
+        .node {
+            cursor: pointer;
+        }
+
+        .node circle {
+            stroke: #fff;
+            stroke-width: 2px;
+        }
+
+        .node text {
+            font-size: 12px;
+            fill: #eee;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            pointer-events: none;
+        }
+
+        .link {
+            stroke: #0f3460;
+            stroke-width: 2px;
+        }
+
+        .status-online { fill: #4ade80; }
+        .status-degraded { fill: #fbbf24; }
+        .status-offline { fill: #ef4444; }
+
+        .legend {
+            position: absolute;
+            top: 100px;
+            right: 40px;
+            background: #16213e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #0f3460;
+        }
+
+        .legend h3 {
+            margin-bottom: 10px;
+            color: #00d9ff;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dynamic Network Connectivity Monitor</h1>
+
+        <div class="stats" id="stats"></div>
+
+        <div class="controls">
+            <h2>Network Operations</h2>
+            <div class="control-group">
+                <input type="text" id="serverName" placeholder="Server name (e.g., web-3)">
+                <select id="serverStatus">
+                    <option value="online">Online</option>
+                    <option value="degraded">Degraded</option>
+                    <option value="offline">Offline</option>
+                </select>
+                <button onclick="addServer()">Add Server</button>
+            </div>
+            <div class="control-group">
+                <select id="fromServer"></select>
+                <select id="toServer"></select>
+                <button onclick="linkServers()">Connect Servers</button>
+            </div>
+            <div class="control-group">
+                <select id="disconnectServer"></select>
+                <button onclick="disconnectServer()">Disconnect Server</button>
+            </div>
+            <div class="control-group">
+                <button onclick="refreshNetwork()">Refresh Network</button>
+            </div>
+        </div>
+
+        <svg id="network"></svg>
+
+        <div class="legend">
+            <h3>Server Status</h3>
+            <div class="legend-item">
+                <div class="legend-color status-online"></div>
+                <span>Online</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color status-degraded"></div>
+                <span>Degraded</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color status-offline"></div>
+                <span>Offline</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const width = 1400;
+        const height = 600;
+
+        const svg = d3.select("#network")
+            .attr("width", width)
+            .attr("height", height);
+
+        let simulation;
+
+        async function fetchStats() {
+            const response = await fetch('/api/stats');
+            const stats = await response.json();
+
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card">
+                    <h3>Total Servers</h3>
+                    <div class="value">${stats.servers}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Active Links</h3>
+                    <div class="value">${stats.links}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Network Partitions</h3>
+                    <div class="value">${stats.partitions}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Online</h3>
+                    <div class="value" style="color: #4ade80">${stats.online}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Degraded</h3>
+                    <div class="value" style="color: #fbbf24">${stats.degraded}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Offline</h3>
+                    <div class="value" style="color: #ef4444">${stats.offline}</div>
+                </div>
+            `;
+        }
+
+        async function fetchNetwork() {
+            const response = await fetch('/api/network');
+            const data = await response.json();
+
+            updateServerSelects(data.nodes);
+            renderNetwork(data);
+            fetchStats();
+        }
+
+        function updateServerSelects(nodes) {
+            const fromSelect = document.getElementById('fromServer');
+            const toSelect = document.getElementById('toServer');
+            const disconnectSelect = document.getElementById('disconnectServer');
+
+            [fromSelect, toSelect, disconnectSelect].forEach(select => {
+                select.innerHTML = nodes.map(n =>
+                    `<option value="${n.id}">${n.name} (${n.id})</option>`
+                ).join('');
+            });
+        }
+
+        function renderNetwork(data) {
+            svg.selectAll("*").remove();
+
+            if (simulation) simulation.stop();
+
+            simulation = d3.forceSimulation(data.nodes)
+                .force("link", d3.forceLink(data.links).id(d => d.id).distance(150))
+                .force("charge", d3.forceManyBody().strength(-400))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(40));
+
+            const link = svg.append("g")
+                .selectAll("line")
+                .data(data.links)
+                .join("line")
+                .attr("class", "link");
+
+            const node = svg.append("g")
+                .selectAll("g")
+                .data(data.nodes)
+                .join("g")
+                .attr("class", "node")
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+
+            node.append("circle")
+                .attr("r", 25)
+                .attr("class", d => `status-${d.status}`);
+
+            node.append("text")
+                .text(d => d.name)
+                .attr("dy", ".35em");
+
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node.attr("transform", d => `translate(${d.x},${d.y})`);
+            });
+        }
+
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        async function addServer() {
+            const name = document.getElementById('serverName').value;
+            const status = document.getElementById('serverStatus').value;
+
+            if (!name) {
+                alert('Please enter a server name');
+                return;
+            }
+
+            await fetch('/api/server', {
+                method: 'POST',
+                body: JSON.stringify({ name, status })
+            });
+
+            document.getElementById('serverName').value = '';
+            fetchNetwork();
+        }
+
+        async function linkServers() {
+            const from = parseInt(document.getElementById('fromServer').value);
+            const to = parseInt(document.getElementById('toServer').value);
+
+            await fetch('/api/link', {
+                method: 'POST',
+                body: JSON.stringify({ from, to })
+            });
+
+            fetchNetwork();
+        }
+
+        async function disconnectServer() {
+            const server = parseInt(document.getElementById('disconnectServer').value);
+
+            await fetch('/api/disconnect', {
+                method: 'POST',
+                body: JSON.stringify({ server })
+            });
+
+            fetchNetwork();
+        }
+
+        function refreshNetwork() {
+            fetchNetwork();
+        }
+
+        // Initial load
+        fetchNetwork();
+
+        // Auto-refresh every 5 seconds
+        setInterval(fetchNetwork, 5000);
+    </script>
+</body>
+</html>
