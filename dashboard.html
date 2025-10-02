@@ -333,19 +333,20 @@
 
             // Adjust force parameters based on number of nodes
             const nodeCount = data.nodes.length;
-            const linkDistance = nodeCount > 500 ? 30 : (nodeCount > 50 ? 80 : 150);
-            const chargeStrength = nodeCount > 500 ? -50 : (nodeCount > 50 ? -200 : -400);
+            const linkDistance = nodeCount > 500 ? 20 : (nodeCount > 50 ? 50 : 100);
+            const linkStrength = nodeCount > 500 ? 0.8 : 0.7;
+            const chargeStrength = nodeCount > 500 ? -30 : (nodeCount > 50 ? -80 : -200);
             const collisionRadius = nodeCount > 500 ? 8 : (nodeCount > 50 ? 20 : 40);
 
             simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).distance(linkDistance).strength(0.5))
+                .force("link", d3.forceLink(data.links).id(d => d.id).distance(linkDistance).strength(linkStrength))
                 .force("charge", d3.forceManyBody().strength(chargeStrength))
                 .force("center", d3.forceCenter(width / 2, height / 2))
                 .force("collision", d3.forceCollide().radius(collisionRadius))
-                .force("x", d3.forceX(width / 2).strength(0.1))
-                .force("y", d3.forceY(height / 2).strength(0.1))
-                .velocityDecay(0.6)
-                .alphaDecay(0.05)
+                .force("x", d3.forceX(width / 2).strength(0.05))
+                .force("y", d3.forceY(height / 2).strength(0.05))
+                .velocityDecay(0.4)
+                .alphaDecay(0.02)
                 .alphaMin(0.001);
 
             const linkGroup = svg.append("g");
@@ -435,7 +436,9 @@
             // Update simulation with new data
             simulation.nodes(data.nodes);
             simulation.force("link").links(data.links);
-            simulation.alpha(0.3).restart();
+
+            // Higher alpha to allow clusters to move together when links change
+            simulation.alpha(0.8).restart();
         }
 
         function tick() {
