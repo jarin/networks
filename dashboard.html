@@ -383,20 +383,17 @@
         }
 
         function updateNetwork(data) {
-            // Update link data
-            link = link.data(data.links, d => `${d.source.id || d.source}-${d.target.id || d.target}`)
-                .join("line")
-                .attr("class", "link");
+            // Update node data - preserve positions from simulation's internal state
+            const simulationNodes = simulation.nodes();
+            const positionMap = new Map(simulationNodes.map(n => [n.id, { x: n.x, y: n.y, vx: n.vx, vy: n.vy }]));
 
-            // Update node data - preserve positions
-            const oldNodes = new Map(currentData.nodes.map(n => [n.id, n]));
             data.nodes.forEach(n => {
-                const old = oldNodes.get(n.id);
-                if (old && old.x !== undefined) {
-                    n.x = old.x;
-                    n.y = old.y;
-                    n.vx = old.vx || 0;
-                    n.vy = old.vy || 0;
+                const pos = positionMap.get(n.id);
+                if (pos) {
+                    n.x = pos.x;
+                    n.y = pos.y;
+                    n.vx = pos.vx;
+                    n.vy = pos.vy;
                 }
             });
 
@@ -429,6 +426,11 @@
                     update => update.select("circle").attr("class", d => `status-${d.status}`),
                     exit => exit.remove()
                 );
+
+            // Update link data AFTER nodes are updated
+            link = link.data(data.links, d => `${d.source.id || d.source}-${d.target.id || d.target}`)
+                .join("line")
+                .attr("class", "link");
 
             // Update simulation with new data
             simulation.nodes(data.nodes);
