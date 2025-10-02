@@ -216,6 +216,7 @@
             </div>
             <div class="control-group">
                 <button onclick="refreshNetwork()">Refresh Network</button>
+                <button onclick="clearNetwork()" style="background: #ef4444;">Clear All (Restart Server)</button>
             </div>
             <div class="control-group">
                 <button id="chaosToggle" onclick="toggleChaos()">Start Chaos Monkey</button>
@@ -307,6 +308,12 @@
             const data = await response.json();
 
             updateServerSelects(data.nodes);
+
+            // Warn if too many nodes
+            if (data.nodes.length > 2000) {
+                console.warn(`Network has ${data.nodes.length} nodes - visualization may be slow`);
+                alert(`Warning: ${data.nodes.length} nodes detected. Visualization may be very slow or freeze. Consider starting fresh with fewer nodes.`);
+            }
 
             // Always do full render to avoid offset issues
             renderNetwork(data);
@@ -587,6 +594,12 @@
 
         function refreshNetwork() {
             fetchNetwork();
+        }
+
+        function clearNetwork() {
+            if (confirm('This will restart the server and clear all nodes. Continue?')) {
+                alert('Please manually restart the server to clear the network.');
+            }
         }
 
         // Chaos Monkey implementation
