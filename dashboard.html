@@ -127,15 +127,18 @@
 
         .node text {
             font-size: 12px;
-            fill: #eee;
+            fill: #fff;
             text-anchor: middle;
             dominant-baseline: middle;
             pointer-events: none;
+            font-weight: 500;
+            text-shadow: 0 0 3px rgba(0,0,0,0.8);
         }
 
         .link {
-            stroke: #0f3460;
+            stroke: #4a5a7a;
             stroke-width: 2px;
+            opacity: 0.6;
         }
 
         .status-online { fill: #4ade80; }
@@ -298,14 +301,15 @@
             const collisionRadius = nodeCount > 50 ? 20 : 40;
 
             simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).distance(linkDistance))
+                .force("link", d3.forceLink(data.links).id(d => d.id).distance(linkDistance).strength(0.5))
                 .force("charge", d3.forceManyBody().strength(chargeStrength))
                 .force("center", d3.forceCenter(width / 2, height / 2))
                 .force("collision", d3.forceCollide().radius(collisionRadius))
-                .force("x", d3.forceX(width / 2).strength(0.05))
-                .force("y", d3.forceY(height / 2).strength(0.05))
-                .velocityDecay(0.4)
-                .alphaDecay(0.02);
+                .force("x", d3.forceX(width / 2).strength(0.1))
+                .force("y", d3.forceY(height / 2).strength(0.1))
+                .velocityDecay(0.6)
+                .alphaDecay(0.05)
+                .alphaMin(0.001);
 
             const link = svg.append("g")
                 .selectAll("line")
@@ -323,8 +327,8 @@
                     .on("drag", dragged)
                     .on("end", dragended));
 
-            const nodeRadius = nodeCount > 50 ? 15 : 25;
-            const fontSize = nodeCount > 50 ? 10 : 12;
+            const nodeRadius = nodeCount > 50 ? 18 : 25;
+            const fontSize = nodeCount > 50 ? 11 : 12;
 
             node.append("circle")
                 .attr("r", nodeRadius)
@@ -417,8 +421,8 @@
         // Initial load
         fetchNetwork();
 
-        // Auto-refresh every 5 seconds
-        setInterval(fetchNetwork, 5000);
+        // Optional: Auto-refresh every 30 seconds (disabled by default to keep layout stable)
+        // setInterval(fetchNetwork, 30000);
     </script>
 </body>
 </html>
