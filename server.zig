@@ -26,28 +26,17 @@ pub fn main() !void {
     std.debug.print("  POST /api/link           - Connect servers (JSON: {{\"from\": 0, \"to\": 1}})\n", .{});
     std.debug.print("  POST /api/disconnect     - Disconnect server (JSON: {{\"server\": 0}})\n", .{});
     std.debug.print("  GET  /                   - Visualization dashboard\n", .{});
-    std.debug.print("\nInitializing network with 100 servers...\n", .{});
+    std.debug.print("\nInitializing network with 1000 servers...\n", .{});
 
-    // Disney characters and Norse mythology names
-    const server_names = [_][]const u8{
-        "mickey", "minnie", "donald", "daisy", "goofy", "pluto", "ariel", "belle", "jasmine", "aurora",
-        "mulan", "tiana", "merida", "elsa", "anna", "moana", "rapunzel", "cinderella", "snow-white", "pocahontas",
-        "simba", "nala", "timon", "pumbaa", "mufasa", "scar", "woody", "buzz", "jessie", "rex",
-        "hamm", "slinky", "sulley", "mike", "boo", "nemo", "dory", "marlin", "crush", "bruce",
-        "lightning", "mater", "sally", "doc", "ramone", "flo", "wall-e", "eve", "captain", "auto",
-        "odin", "thor", "loki", "freya", "frigg", "baldur", "tyr", "heimdall", "hela", "vidar",
-        "vali", "bragi", "idun", "njord", "skadi", "frey", "freyja", "sif", "magni", "modi",
-        "forseti", "hodr", "hermod", "ullr", "vili", "ve", "buri", "bor", "bestla", "ymir",
-        "fenrir", "jormungandr", "sleipnir", "ratatoskr", "hugin", "munin", "geri", "freki", "tanngrisnir", "tanngnjost",
-        "gullinbursti", "hildisvini", "heidrun", "eikthyrnir", "arvak", "alsvid", "skinfaxi", "hrimfaxi", "garm", "nidhogg",
-    };
-
-    var server_ids: [100]u32 = undefined;
+    const num_servers = 1000;
+    var server_ids: [1000]u32 = undefined;
     var prng = std.Random.DefaultPrng.init(42);
     const random = prng.random();
 
-    // Create 100 servers with random status
-    for (server_names, 0..) |name, i| {
+    var name_buf: [32]u8 = undefined;
+
+    // Create 1000 servers with generated names and random status
+    for (0..num_servers) |i| {
         const status_roll = random.uintLessThan(u8, 100);
         const status: ServerStatus = if (status_roll < 75)
             .online
@@ -56,42 +45,71 @@ pub fn main() !void {
         else
             .offline;
 
+        // Generate name based on index
+        const name = if (i < 50) blk: {
+            // First 50: Disney-themed
+            const disney = [_][]const u8{ "mickey", "minnie", "donald", "daisy", "goofy", "pluto", "ariel", "belle", "jasmine", "aurora", "mulan", "tiana", "merida", "elsa", "anna", "moana", "rapunzel", "cinderella", "snow-white", "pocahontas", "simba", "nala", "timon", "pumbaa", "mufasa", "scar", "woody", "buzz", "jessie", "rex", "hamm", "slinky", "sulley", "mike", "boo", "nemo", "dory", "marlin", "crush", "bruce", "lightning", "mater", "sally", "doc", "ramone", "flo", "wall-e", "eve", "captain", "auto" };
+            break :blk disney[i];
+        } else if (i < 100) blk: {
+            // Next 50: Norse-themed
+            const norse = [_][]const u8{ "odin", "thor", "loki", "freya", "frigg", "baldur", "tyr", "heimdall", "hela", "vidar", "vali", "bragi", "idun", "njord", "skadi", "frey", "freyja", "sif", "magni", "modi", "forseti", "hodr", "hermod", "ullr", "vili", "ve", "buri", "bor", "bestla", "ymir", "fenrir", "jormungandr", "sleipnir", "ratatoskr", "hugin", "munin", "geri", "freki", "tanngrisnir", "tanngnjost", "gullinbursti", "hildisvini", "heidrun", "eikthyrnir", "arvak", "alsvid", "skinfaxi", "hrimfaxi", "garm", "nidhogg" };
+            break :blk norse[i - 50];
+        } else blk: {
+            // Rest: Generated names
+            const name_str = std.fmt.bufPrint(&name_buf, "node-{d}", .{i}) catch "unknown";
+            break :blk name_str;
+        };
+
         server_ids[i] = try network.add_server(name, status);
+
+        if ((i + 1) % 100 == 0) {
+            std.debug.print("Created {}/{} servers...\n", .{ i + 1, num_servers });
+        }
     }
 
-    std.debug.print("Created 100 servers\n", .{});
     std.debug.print("Building network topology...\n", .{});
 
-    // Create a more interesting topology:
-    // 1. Ring topology connecting all servers
-    for (0..100) |i| {
-        const next = (i + 1) % 100;
+    // Create a scalable topology:
+    // 1. Ring topology for base connectivity
+    for (0..num_servers) |i| {
+        const next = (i + 1) % num_servers;
         try network.connect_servers(server_ids[i], server_ids[next]);
     }
 
-    // 2. Add some cross-connections for shortcuts (small-world network)
-    for (0..50) |_| {
-        const a = random.uintLessThan(usize, 100);
-        var b = random.uintLessThan(usize, 100);
-        while (b == a) {
-            b = random.uintLessThan(usize, 100);
+    std.debug.print("Ring topology created ({} links)\n", .{num_servers});
+
+    // 2. Add random shortcuts for small-world properties (5% of nodes)
+    const shortcuts = num_servers / 20;
+    for (0..shortcuts) |_| {
+        const a = random.uintLessThan(usize, num_servers);
+        var b = random.uintLessThan(usize, num_servers);
+        var attempts: u32 = 0;
+        while (b == a and attempts < 10) : (attempts += 1) {
+            b = random.uintLessThan(usize, num_servers);
         }
-        network.connect_servers(server_ids[a], server_ids[b]) catch {};
+        if (b != a) {
+            network.connect_servers(server_ids[a], server_ids[b]) catch {};
+        }
     }
 
-    // 3. Create some hub nodes (connect every 10th server to neighbors)
+    std.debug.print("Added {} random shortcuts\n", .{shortcuts});
+
+    // 3. Create hub nodes (every 50th server connects to nearby nodes)
+    var hubs: usize = 0;
     var hub: usize = 0;
-    while (hub < 100) : (hub += 10) {
+    while (hub < num_servers) : (hub += 50) {
         for (0..5) |offset| {
-            const target = (hub + offset + 1) % 100;
+            const target = (hub + offset + 1) % num_servers;
             if (target != hub) {
                 network.connect_servers(server_ids[hub], server_ids[target]) catch {};
             }
         }
+        hubs += 1;
     }
 
-    std.debug.print("Network topology created with ~200 links\n", .{});
-    std.debug.print("Topology: Ring + random shortcuts + hub nodes\n\n", .{});
+    std.debug.print("Created {} hub nodes\n", .{hubs});
+    std.debug.print("Network topology complete with ~{} total links\n", .{num_servers + shortcuts + (hubs * 5)});
+    std.debug.print("Ready for chaos monkey testing!\n\n", .{});
 
     while (true) {
         const connection = try listener.accept();

@@ -323,9 +323,9 @@
 
             // Adjust force parameters based on number of nodes
             const nodeCount = data.nodes.length;
-            const linkDistance = nodeCount > 50 ? 80 : 150;
-            const chargeStrength = nodeCount > 50 ? -200 : -400;
-            const collisionRadius = nodeCount > 50 ? 20 : 40;
+            const linkDistance = nodeCount > 500 ? 30 : (nodeCount > 50 ? 80 : 150);
+            const chargeStrength = nodeCount > 500 ? -50 : (nodeCount > 50 ? -200 : -400);
+            const collisionRadius = nodeCount > 500 ? 8 : (nodeCount > 50 ? 20 : 40);
 
             simulation = d3.forceSimulation(data.nodes)
                 .force("link", d3.forceLink(data.links).id(d => d.id).distance(linkDistance).strength(0.5))
@@ -354,17 +354,19 @@
                     .on("drag", dragged)
                     .on("end", dragended));
 
-            const nodeRadius = nodeCount > 50 ? 18 : 25;
-            const fontSize = nodeCount > 50 ? 11 : 12;
+            const nodeRadius = nodeCount > 500 ? 6 : (nodeCount > 50 ? 18 : 25);
+            const fontSize = nodeCount > 500 ? 0 : (nodeCount > 50 ? 11 : 12);
 
             node.append("circle")
                 .attr("r", nodeRadius)
                 .attr("class", d => `status-${d.status}`);
 
-            node.append("text")
-                .text(d => d.name)
-                .attr("dy", ".35em")
-                .style("font-size", `${fontSize}px`);
+            if (fontSize > 0) {
+                node.append("text")
+                    .text(d => d.name)
+                    .attr("dy", ".35em")
+                    .style("font-size", `${fontSize}px`);
+            }
 
             simulation.on("tick", () => {
                 // Constrain nodes to viewport with padding
