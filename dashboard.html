@@ -262,6 +262,8 @@
             .attr("viewBox", `0 0 ${width} ${height}`);
 
         let simulation;
+        let currentData = { nodes: [], links: [] };
+        let link, node;
 
         async function fetchStats() {
             const response = await fetch('/api/stats');
@@ -300,7 +302,15 @@
             const data = await response.json();
 
             updateServerSelects(data.nodes);
-            renderNetwork(data);
+
+            // Check if this is the first render
+            if (currentData.nodes.length === 0) {
+                renderNetwork(data);
+            } else {
+                updateNetwork(data);
+            }
+
+            currentData = data;
             fetchStats();
         }
 
@@ -338,15 +348,16 @@
                 .alphaDecay(0.05)
                 .alphaMin(0.001);
 
-            const link = svg.append("g")
-                .selectAll("line")
+            const linkGroup = svg.append("g");
+            const nodeGroup = svg.append("g");
+
+            link = linkGroup.selectAll("line")
                 .data(data.links)
                 .join("line")
                 .attr("class", "link");
 
-            const node = svg.append("g")
-                .selectAll("g")
-                .data(data.nodes)
+            node = nodeGroup.selectAll("g")
+                .data(data.nodes, d => d.id)
                 .join("g")
                 .attr("class", "node")
                 .call(d3.drag()
@@ -368,21 +379,83 @@
                     .style("font-size", `${fontSize}px`);
             }
 
-            simulation.on("tick", () => {
-                // Constrain nodes to viewport with padding
-                data.nodes.forEach(d => {
-                    d.x = Math.max(30, Math.min(width - 30, d.x));
-                    d.y = Math.max(30, Math.min(height - 30, d.y));
-                });
+            simulation.on("tick", tick);
+        }
 
+        function updateNetwork(data) {
+            // Update link data
+            link = link.data(data.links, d => `${d.source.id || d.source}-${d.target.id || d.target}`)
+                .join("line")
+                .attr("class", "link");
+
+            // Update node data - preserve positions
+            const oldNodes = new Map(currentData.nodes.map(n => [n.id, n]));
+            data.nodes.forEach(n => {
+                const old = oldNodes.get(n.id);
+                if (old && old.x !== undefined) {
+                    n.x = old.x;
+                    n.y = old.y;
+                    n.vx = old.vx || 0;
+                    n.vy = old.vy || 0;
+                }
+            });
+
+            const nodeCount = data.nodes.length;
+            const nodeRadius = nodeCount > 500 ? 6 : (nodeCount > 50 ? 18 : 25);
+            const fontSize = nodeCount > 500 ? 0 : (nodeCount > 50 ? 11 : 12);
+
+            node = node.data(data.nodes, d => d.id)
+                .join(
+                    enter => {
+                        const g = enter.append("g")
+                            .attr("class", "node")
+                            .call(d3.drag()
+                                .on("start", dragstarted)
+                                .on("drag", dragged)
+                                .on("end", dragended));
+
+                        g.append("circle")
+                            .attr("r", nodeRadius)
+                            .attr("class", d => `status-${d.status}`);
+
+                        if (fontSize > 0) {
+                            g.append("text")
+                                .text(d => d.name)
+                                .attr("dy", ".35em")
+                                .style("font-size", `${fontSize}px`);
+                        }
+                        return g;
+                    },
+                    update => update.select("circle").attr("class", d => `status-${d.status}`),
+                    exit => exit.remove()
+                );
+
+            // Update simulation with new data
+            simulation.nodes(data.nodes);
+            simulation.force("link").links(data.links);
+            simulation.alpha(0.3).restart();
+        }
+
+        function tick() {
+            if (!simulation || !simulation.nodes()) return;
+
+            // Constrain nodes to viewport with padding
+            simulation.nodes().forEach(d => {
+                d.x = Math.max(30, Math.min(width - 30, d.x));
+                d.y = Math.max(30, Math.min(height - 30, d.y));
+            });
+
+            if (link) {
                 link
                     .attr("x1", d => d.source.x)
                     .attr("y1", d => d.source.y)
                     .attr("x2", d => d.target.x)
                     .attr("y2", d => d.target.y);
+            }
 
+            if (node) {
                 node.attr("transform", d => `translate(${d.x},${d.y})`);
-            });
+            }
         }
 
         function dragstarted(event, d) {
