@@ -35,10 +35,10 @@ pub fn main() !void {
     const s4 = try network.add_server("cache-1", .online);
     const s5 = try network.add_server("api-1", .degraded);
 
-    network.connect_servers(s1, s2);
-    network.connect_servers(s2, s3);
-    network.connect_servers(s3, s4);
-    network.connect_servers(s4, s5);
+    try network.connect_servers(s1, s2);
+    try network.connect_servers(s2, s3);
+    try network.connect_servers(s3, s4);
+    try network.connect_servers(s4, s5);
 
     std.debug.print("Sample network created with 5 servers\n\n", .{});
 
@@ -97,20 +97,21 @@ fn send_network_state(allocator: std.mem.Allocator, network: *Network, stream: s
 
     for (network.servers.items, 0..) |server, i| {
         if (i > 0) try writer.writeAll(",");
+        const root_id = network.find_network_root(server.id) orelse server.id;
         try std.fmt.format(writer, "{{\"id\":{},\"name\":\"{s}\",\"status\":\"{s}\",\"group\":{}}}", .{
             server.id,
             server.name,
             @tagName(server.status),
-            network.find_network_root(&network.servers.items[i]),
+            root_id,
         });
     }
 
     try writer.writeAll("],\"links\":[");
 
     var link_count: usize = 0;
-    for (network.servers.items, 0..) |*server_a, i| {
-        for (network.servers.items[i + 1 ..]) |*server_b| {
-            if (network.are_connected(server_a, server_b)) {
+    for (network.servers.items, 0..) |server_a, i| {
+        for (network.servers.items[i + 1 ..]) |server_b| {
+            if (network.are_connected(server_a.id, server_b.id)) {
                 if (link_count > 0) try writer.writeAll(",");
                 try std.fmt.format(writer, "{{\"source\":{},\"target\":{}}}", .{ server_a.id, server_b.id });
                 link_count += 1;
@@ -194,10 +195,10 @@ fn add_server_endpoint(allocator: std.mem.Allocator, network: *Network, stream: 
         return;
     };
 
-    const server = try network.add_server(name, status);
+    const server_id = try network.add_server(name, status);
 
     var buf: [256]u8 = undefined;
-    const json = try std.fmt.bufPrint(&buf, "{{\"id\":{},\"name\":\"{s}\",\"status\":\"{s}\"}}", .{ server.id, server.name, @tagName(server.status) });
+    const json = try std.fmt.bufPrint(&buf, "{{\"id\":{},\"name\":\"{s}\",\"status\":\"{s}\"}}", .{ server_id, name, @tagName(status) });
 
     var response_buf: [512]u8 = undefined;
     const response = try std.fmt.bufPrint(&response_buf, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{s}", .{ json.len, json });
@@ -228,17 +229,10 @@ fn link_servers_endpoint(allocator: std.mem.Allocator, network: *Network, stream
     const from_id = try std.fmt.parseInt(u32, body[from_value_start..from_end], 10);
     const to_id = try std.fmt.parseInt(u32, body[to_value_start..to_end], 10);
 
-    const server_a = network.get_server(from_id) orelse {
-        try send_error(stream, "Server 'from' not found");
+    network.connect_servers(from_id, to_id) catch {
+        try send_error(stream, "Failed to connect servers");
         return;
     };
-
-    const server_b = network.get_server(to_id) orelse {
-        try send_error(stream, "Server 'to' not found");
-        return;
-    };
-
-    network.connect_servers(server_a, server_b);
 
     const json = "{\"success\":true}";
     var response_buf: [256]u8 = undefined;
@@ -263,12 +257,10 @@ fn disconnect_server_endpoint(allocator: std.mem.Allocator, network: *Network, s
 
     const server_id = try std.fmt.parseInt(u32, body[server_value_start..server_end], 10);
 
-    const server = network.get_server(server_id) orelse {
+    network.disconnect_server(server_id) catch {
         try send_error(stream, "Server not found");
         return;
     };
-
-    network.disconnect_servers(server);
 
     const json = "{\"success\":true}";
     var response_buf: [256]u8 = undefined;
