@@ -422,6 +422,13 @@
             // Update simulation nodes FIRST
             simulation.nodes(data.nodes);
 
+            // Update link force BEFORE updating visual links
+            // This allows D3 to bind source/target to the correct node objects
+            simulation.force("link").links(data.links);
+
+            // Force one tick to initialize link bindings without animation
+            simulation.tick();
+
             // Then update visual elements
             node = node.data(data.nodes, d => d.id)
                 .join(
@@ -449,15 +456,12 @@
                     exit => exit.remove()
                 );
 
-            // Update links
+            // Update visual links AFTER simulation has bound them
             link = link.data(data.links, d => `${d.source.id || d.source}-${d.target.id || d.target}`)
                 .join("line")
                 .attr("class", "link");
 
-            // Update link force with new links
-            simulation.force("link").links(data.links);
-
-            // Higher alpha to allow clusters to move together when links change
+            // Now restart with animation
             simulation.alpha(0.8).restart();
         }
 
