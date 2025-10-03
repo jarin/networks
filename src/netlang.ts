@@ -5,7 +5,7 @@
 // LEXER
 // ============================================================================
 
-export enum TokenType {
+enum TokenType {
     // Literals
     NUMBER = 'NUMBER',
     STRING = 'STRING',
@@ -59,7 +59,7 @@ export enum TokenType {
     EOF = 'EOF'
 }
 
-export class Token {
+class Token {
     constructor(
         public type: TokenType,
         public value: any,
@@ -68,7 +68,7 @@ export class Token {
     ) {}
 }
 
-export class Lexer {
+class Lexer {
     private pos: number = 0;
     private line: number = 1;
     private col: number = 1;
@@ -417,7 +417,7 @@ export type Expression = BinaryOp | UnaryOp | CallExpression | MemberExpression 
                          IndexExpression | Identifier | Literal | ArrayLiteral |
                          SetLiteral | MapLiteral;
 
-export class Parser {
+class Parser {
     private pos: number = 0;
 
     constructor(private tokens: Token[]) {}
@@ -822,7 +822,7 @@ class ReturnException {
     constructor(public value: any) {}
 }
 
-export class Interpreter {
+class Interpreter {
     private global: Environment;
     private loopIterations: number = 0;
     private maxLoopIterations: number = 100000;
