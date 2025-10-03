@@ -215,7 +215,21 @@ fn link_servers_endpoint(allocator: std.mem.Allocator, network: *Network, stream
     const from_id = try std.fmt.parseInt(u32, body[from_value_start..from_end], 10);
     const to_id = try std.fmt.parseInt(u32, body[to_value_start..to_end], 10);
 
-    network.connect_servers(from_id, to_id) catch {
+    // Parse weight (optional, default to 1.0)
+    var weight: f32 = 1.0;
+    if (std.mem.indexOf(u8, body, "\"weight\":")) |weight_start| {
+        const weight_value_start = weight_start + 9;
+        var weight_end = weight_value_start;
+        while (weight_end < body.len and
+              ((body[weight_end] >= '0' and body[weight_end] <= '9') or
+               body[weight_end] == '.')) : (weight_end += 1) {}
+
+        if (weight_end > weight_value_start) {
+            weight = std.fmt.parseFloat(f32, body[weight_value_start..weight_end]) catch 1.0;
+        }
+    }
+
+    network.connect_servers(from_id, to_id, weight) catch {
         try send_error(stream, "Failed to connect servers");
         return;
     };

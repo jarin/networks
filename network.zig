@@ -78,17 +78,12 @@ pub const Network = struct {
         return id;
     }
 
-    pub fn connect_servers(self: *Network, id_a: u32, id_b: u32) !void {
+    pub fn connect_servers(self: *Network, id_a: u32, id_b: u32, weight: f32) !void {
         const server_a = self.get_server(id_a) orelse return error.ServerNotFound;
         const server_b = self.get_server(id_b) orelse return error.ServerNotFound;
 
         if (!self.lct.connected(server_a.lct_node, server_b.lct_node)) {
             self.lct.link(server_a.lct_node, server_b.lct_node);
-
-            // Add link with random weight (simulating flow)
-            var prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
-            const random = prng.random();
-            const weight = random.float(f32) * 10.0 + 0.5; // Random weight between 0.5 and 10.5
 
             try self.links.append(Link{
                 .from = id_a,
