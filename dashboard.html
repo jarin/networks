@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Network Visualization</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="netlang.js"></script>
     <style>
         * {
             margin: 0;
@@ -23,7 +24,7 @@
         .main-container {
             display: grid;
             grid-template-columns: 300px 1fr 300px;
-            grid-template-rows: 60px 1fr;
+            grid-template-rows: 60px 1fr 250px;
             height: 100vh;
             gap: 0;
         }
@@ -263,6 +264,77 @@
             font-size: 10px;
             width: auto;
         }
+
+        .algorithm-panel {
+            grid-column: 1 / -1;
+            background: #151515;
+            border-top: 1px solid #333;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .code-section, .console-section {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .code-section h3, .console-section h3 {
+            font-size: 12px;
+            color: #00ff88;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #codeEditor {
+            flex: 1;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: none;
+        }
+
+        #console {
+            flex: 1;
+            background: #0a0a0a;
+            color: #888;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            overflow-y: auto;
+        }
+
+        .algorithm-controls {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .algorithm-controls select {
+            flex: 1;
+        }
+
+        .algorithm-controls button {
+            width: auto;
+            padding: 6px 12px;
+        }
+
+        #console .log-entry {
+            margin-bottom: 2px;
+            color: #e0e0e0;
+        }
+
+        #console .log-error {
+            color: #ff4a4a;
+        }
     </style>
 </head>
 <body>
@@ -397,6 +469,26 @@
                         <input type="radio" name="mode" value="connect"> Connect nodes
                     </label>
                 </div>
+            </div>
+        </div>
+
+        <div class="algorithm-panel">
+            <div class="code-section">
+                <h3>Algorithm Code</h3>
+                <textarea id="codeEditor" spellcheck="false"></textarea>
+                <div class="algorithm-controls">
+                    <select id="exampleSelect" onchange="loadExample()">
+                        <option value="">Select Example...</option>
+                        <option value="bfs">BFS - Breadth First Search</option>
+                    </select>
+                    <button onclick="runAlgorithm()" style="background: #00ff88; color: #0a0a0a;">Run</button>
+                    <button onclick="stopAlgorithm()" style="background: #ff4a4a; color: #0a0a0a;">Stop</button>
+                    <button onclick="clearHighlights()">Clear</button>
+                </div>
+            </div>
+            <div class="console-section">
+                <h3>Console Output</h3>
+                <div id="console"></div>
             </div>
         </div>
     </div>
@@ -843,8 +935,219 @@
             }
         });
 
+        // ====================================================================
+        // ALGORITHM EXECUTION
+        // ====================================================================
+
+        let algorithmRunning = false;
+        let currentInterpreter = null;
+
+        const EXAMPLES = {
+            bfs: `// BFS from source node 0
+let source = 0
+let visited = {}
+let q = queue()
+
+enqueue(q, source)
+add(visited, source)
+highlight_node(source, "current")
+log("Starting BFS from node " + source)
+sleep(500)
+
+while not is_empty(q) {
+    let current = dequeue(q)
+    highlight_node(current, "visiting")
+    log("Visiting node " + current)
+    sleep(300)
+
+    for neighbor in neighbors(current) {
+        if not has(visited, neighbor) {
+            add(visited, neighbor)
+            enqueue(q, neighbor)
+            highlight_edge(current, neighbor, "active")
+            log("  Discovered node " + neighbor)
+            sleep(200)
+        }
+    }
+
+    highlight_node(current, "visited")
+}
+
+log("BFS complete! Visited " + size(visited) + " nodes")`
+        };
+
+        function loadExample() {
+            const select = document.getElementById('exampleSelect');
+            const example = EXAMPLES[select.value];
+            if (example) {
+                document.getElementById('codeEditor').value = example;
+            }
+        }
+
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+        }
+
+        function logToConsole(message, isError = false) {
+            const console = document.getElementById('console');
+            const entry = document.createElement('div');
+            entry.className = isError ? 'log-error' : 'log-entry';
+            entry.textContent = message;
+            console.appendChild(entry);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function clearVisualizationHighlights() {
+            // Clear node highlighting
+            nodeGroup.selectAll("g")
+                .attr("class", d => {
+                    let classes = "node";
+                    if (d.id === selectedNode) classes += " selected";
+                    if (d.status === "offline") classes += " offline";
+                    return classes;
+                });
+
+            // Clear edge highlighting
+            linkGroup.selectAll("line")
+                .attr("class", "link")
+                .attr("stroke", "#666")
+                .attr("stroke-width", 2);
+
+            // Clear labels
+            nodeGroup.selectAll("text").each(function(d) {
+                d3.select(this).text(d.name);
+            });
+
+            linkGroup.selectAll("text").remove();
+        }
+
+        // Graph API for NetLang
+        const graphAPI = {
+            nodes: () => nodes.map(n => n.id),
+            neighbors: (id) => {
+                return links
+                    .filter(l => (l.source.id || l.source) === id)
+                    .map(l => l.target.id || l.target);
+            },
+            edges: () => {
+                return links.map(l => ({
+                    from: l.source.id || l.source,
+                    to: l.target.id || l.target,
+                    weight: l.weight || 1
+                }));
+            },
+            weight: (from, to) => {
+                const link = links.find(l =>
+                    (l.source.id || l.source) === from &&
+                    (l.target.id || l.target) === to
+                );
+                return link ? (link.weight || 1) : null;
+            },
+            nodeCount: () => nodes.length,
+            highlightNode: (id, color) => {
+                const colorMap = {
+                    'current': '#ff4a4a',
+                    'visiting': '#ffaa00',
+                    'visited': '#00ff88',
+                    'path': '#4a9eff'
+                };
+                nodeGroup.selectAll("g").filter(d => d.id === id)
+                    .select("circle")
+                    .attr("fill", colorMap[color] || color);
+            },
+            highlightEdge: (from, to, color) => {
+                const colorMap = {
+                    'active': '#00ff88',
+                    'path': '#4a9eff',
+                    'relaxed': '#ffaa00'
+                };
+                linkGroup.selectAll("line")
+                    .filter(d => (d.source.id || d.source) === from &&
+                                 (d.target.id || d.target) === to)
+                    .attr("stroke", colorMap[color] || color)
+                    .attr("stroke-width", 3);
+            },
+            setNodeLabel: (id, text) => {
+                nodeGroup.selectAll("g").filter(d => d.id === id)
+                    .select("text")
+                    .text(text);
+            },
+            setEdgeLabel: (from, to, text) => {
+                // Find edge midpoint and add label
+                const link = links.find(l =>
+                    (l.source.id || l.source) === from &&
+                    (l.target.id || l.target) === to
+                );
+                if (link) {
+                    const sx = link.source.x || nodes[link.source].x;
+                    const sy = link.source.y || nodes[link.source].y;
+                    const tx = link.target.x || nodes[link.target].x;
+                    const ty = link.target.y || nodes[link.target].y;
+
+                    linkGroup.append("text")
+                        .attr("class", "weight-label")
+                        .attr("x", (sx + tx) / 2)
+                        .attr("y", (sy + ty) / 2 - 5)
+                        .text(text);
+                }
+            },
+            log: (msg) => logToConsole(String(msg)),
+            sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms))
+        };
+
+        async function runAlgorithm() {
+            if (algorithmRunning) {
+                logToConsole('Algorithm already running', true);
+                return;
+            }
+
+            const code = document.getElementById('codeEditor').value;
+            if (!code.trim()) {
+                logToConsole('No code to execute', true);
+                return;
+            }
+
+            clearConsole();
+            clearVisualizationHighlights();
+            algorithmRunning = true;
+
+            try {
+                logToConsole('Compiling...');
+                const lexer = new Lexer(code);
+                const tokens = lexer.tokenize();
+                const parser = new Parser(tokens);
+                const ast = parser.parse();
+
+                logToConsole('Executing...');
+                currentInterpreter = new Interpreter(graphAPI);
+                await currentInterpreter.execute(ast);
+
+                logToConsole('--- Execution Complete ---');
+            } catch (error) {
+                logToConsole('Error: ' + error.message, true);
+                console.error(error);
+            } finally {
+                algorithmRunning = false;
+                currentInterpreter = null;
+            }
+        }
+
+        function stopAlgorithm() {
+            if (algorithmRunning) {
+                algorithmRunning = false;
+                currentInterpreter = null;
+                logToConsole('--- Execution Stopped ---', true);
+            }
+        }
+
+        function clearHighlights() {
+            clearVisualizationHighlights();
+            logToConsole('Cleared all highlights');
+        }
+
         // Initial load
         fetchNetwork();
+        loadExample(); // Load default BFS example
     </script>
 </body>
 </html>

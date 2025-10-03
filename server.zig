@@ -73,6 +73,8 @@ fn handle_request(allocator: std.mem.Allocator, network: *Network, connection: s
         try clear_network_endpoint(network, connection.stream);
     } else if (std.mem.eql(u8, method, "GET") and std.mem.eql(u8, path, "/")) {
         try send_html_dashboard(connection.stream);
+    } else if (std.mem.eql(u8, method, "GET") and std.mem.eql(u8, path, "/netlang.js")) {
+        try send_netlang_js(connection.stream);
     } else {
         try send_404(connection.stream);
     }
@@ -359,4 +361,13 @@ fn send_html_dashboard(stream: std.net.Stream) !void {
 
     try stream.writeAll(response);
     try stream.writeAll(html);
+}
+
+fn send_netlang_js(stream: std.net.Stream) !void {
+    const js = @embedFile("netlang.js");
+    var buf: [256]u8 = undefined;
+    const response = try std.fmt.bufPrint(&buf, "HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\n\r\n", .{js.len});
+
+    try stream.writeAll(response);
+    try stream.writeAll(js);
 }
