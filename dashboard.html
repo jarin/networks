@@ -278,6 +278,7 @@
         .code-section, .console-section {
             display: flex;
             flex-direction: column;
+            min-height: 0; /* Allow flex children to scroll */
         }
 
         .code-section h3, .console-section h3 {
@@ -286,10 +287,12 @@
             margin-bottom: 5px;
             text-transform: uppercase;
             letter-spacing: 1px;
+            flex-shrink: 0; /* Don't shrink headers */
         }
 
         #codeEditor {
             flex: 1;
+            min-height: 0; /* Allow scrolling */
             background: #0a0a0a;
             color: #e0e0e0;
             border: 1px solid #333;
@@ -298,10 +301,12 @@
             font-family: 'Courier New', monospace;
             font-size: 12px;
             resize: none;
+            overflow-y: auto;
         }
 
         #console {
             flex: 1;
+            min-height: 0; /* Allow scrolling */
             background: #0a0a0a;
             color: #888;
             border: 1px solid #333;
@@ -310,12 +315,14 @@
             font-family: 'Courier New', monospace;
             font-size: 11px;
             overflow-y: auto;
+            word-wrap: break-word;
         }
 
         .algorithm-controls {
             display: flex;
             gap: 5px;
             margin-top: 5px;
+            flex-shrink: 0; /* Keep buttons visible */
         }
 
         .algorithm-controls select {
