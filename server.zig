@@ -364,7 +364,7 @@ fn send_html_dashboard(stream: std.net.Stream) !void {
 }
 
 fn send_netlang_js(stream: std.net.Stream) !void {
-    const js = @embedFile("netlang.js");
+    const js = @embedFile("dist/netlang.js");
     var buf: [256]u8 = undefined;
     const response = try std.fmt.bufPrint(&buf, "HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\n\r\n", .{js.len});
 
