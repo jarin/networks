@@ -69,6 +69,8 @@ fn handle_request(allocator: std.mem.Allocator, network: *Network, connection: s
         try disconnect_server_endpoint(allocator, network, connection.stream, body);
     } else if (std.mem.eql(u8, method, "POST") and std.mem.startsWith(u8, path, "/api/bulk-add")) {
         try bulk_add_servers_endpoint(allocator, network, connection.stream, body);
+    } else if (std.mem.eql(u8, method, "POST") and std.mem.startsWith(u8, path, "/api/clear")) {
+        try clear_network_endpoint(network, connection.stream);
     } else if (std.mem.eql(u8, method, "GET") and std.mem.eql(u8, path, "/")) {
         try send_html_dashboard(connection.stream);
     } else {
@@ -253,7 +255,6 @@ fn disconnect_server_endpoint(allocator: std.mem.Allocator, network: *Network, s
 }
 
 fn bulk_add_servers_endpoint(allocator: std.mem.Allocator, network: *Network, stream: std.net.Stream, body: []const u8) !void {
-    _ = allocator;
     const count_start = std.mem.indexOf(u8, body, "\"count\":");
     if (count_start == null) {
         try send_error(stream, "Invalid JSON - missing count");
@@ -276,7 +277,6 @@ fn bulk_add_servers_endpoint(allocator: std.mem.Allocator, network: *Network, st
     var prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
     const random = prng.random();
 
-    var name_buf: [64]u8 = undefined;
     var created: u32 = 0;
 
     for (0..count) |i| {
@@ -288,10 +288,10 @@ fn bulk_add_servers_endpoint(allocator: std.mem.Allocator, network: *Network, st
         } else if (i < disney.len + norse.len) blk: {
             break :blk norse[i - disney.len];
         } else blk: {
-            // Combine names for unique identifiers
+            // Combine names for unique identifiers - allocate persistent memory
             const d_idx = i % disney.len;
             const n_idx = (i / disney.len) % norse.len;
-            const name_str = std.fmt.bufPrint(&name_buf, "{s}-{s}", .{ disney[d_idx], norse[n_idx] }) catch "node";
+            const name_str = std.fmt.allocPrint(allocator, "{s}-{s}", .{ disney[d_idx], norse[n_idx] }) catch "node";
             break :blk name_str;
         };
 
@@ -305,6 +305,20 @@ fn bulk_add_servers_endpoint(allocator: std.mem.Allocator, network: *Network, st
     var http_buf: [512]u8 = undefined;
     const response = try std.fmt.bufPrint(&http_buf, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{s}", .{ json.len, json });
 
+    try stream.writeAll(response);
+}
+
+fn clear_network_endpoint(network: *Network, stream: std.net.Stream) !void {
+    // Clear all servers and links
+    for (network.servers.items) |server| {
+        network.lct.destroy_node(server.lct_node);
+    }
+    network.servers.clearRetainingCapacity();
+    network.links.clearRetainingCapacity();
+    network.next_id = 0;
+    network.links_count = 0;
+
+    const response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: 21\r\n\r\n{\"status\":\"cleared\"}";
     try stream.writeAll(response);
 }
 
