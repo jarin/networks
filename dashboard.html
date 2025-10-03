@@ -998,20 +998,22 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
         }
 
         function clearVisualizationHighlights() {
-            // Clear node highlighting
+            // Clear node highlighting - remove inline styles
             nodeGroup.selectAll("g")
                 .attr("class", d => {
                     let classes = "node";
                     if (d.id === selectedNode) classes += " selected";
                     if (d.status === "offline") classes += " offline";
                     return classes;
-                });
+                })
+                .select("circle")
+                .style("fill", null); // Remove inline style
 
-            // Clear edge highlighting
+            // Clear edge highlighting - remove inline styles
             linkGroup.selectAll("line")
                 .attr("class", "link")
-                .attr("stroke", "#666")
-                .attr("stroke-width", 2);
+                .style("stroke", null)
+                .style("stroke-width", null);
 
             // Clear labels
             nodeGroup.selectAll("text").each(function(d) {
@@ -1058,7 +1060,7 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
                 };
                 nodeGroup.selectAll("g").filter(d => d.id === id)
                     .select("circle")
-                    .attr("fill", colorMap[color] || color);
+                    .style("fill", colorMap[color] || color);
             },
             highlightEdge: (from, to, color) => {
                 const colorMap = {
@@ -1069,8 +1071,8 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
                 linkGroup.selectAll("line")
                     .filter(d => getNodeId(d.source) === from &&
                                  getNodeId(d.target) === to)
-                    .attr("stroke", colorMap[color] || color)
-                    .attr("stroke-width", 3);
+                    .style("stroke", colorMap[color] || color)
+                    .style("stroke-width", "3px");
             },
             setNodeLabel: (id, text) => {
                 nodeGroup.selectAll("g").filter(d => d.id === id)
