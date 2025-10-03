@@ -523,7 +523,7 @@
         // Add zoom/pan capability
         const g = svg.append("g");
         const zoom = d3.zoom()
-            .scaleExtent([0.1, 10])
+            .scaleExtent([0.01, 20])  // Allow 100x zoom out for large sparse graphs
             .on("zoom", (event) => {
                 g.attr("transform", event.transform);
             });
