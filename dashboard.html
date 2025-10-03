@@ -947,6 +947,7 @@
         // ====================================================================
 
         let algorithmRunning = false;
+        let algorithmShouldStop = false;
         let currentInterpreter = null;
 
         const EXAMPLES = {
@@ -1106,7 +1107,21 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
                 }
             },
             log: (msg) => logToConsole(String(msg)),
-            sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms))
+            sleep: (ms) => {
+                return new Promise((resolve, reject) => {
+                    if (algorithmShouldStop) {
+                        reject(new Error('Algorithm stopped by user'));
+                        return;
+                    }
+                    setTimeout(() => {
+                        if (algorithmShouldStop) {
+                            reject(new Error('Algorithm stopped by user'));
+                        } else {
+                            resolve();
+                        }
+                    }, ms);
+                });
+            }
         };
 
         async function runAlgorithm() {
@@ -1124,6 +1139,15 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
             clearConsole();
             clearVisualizationHighlights();
             algorithmRunning = true;
+            algorithmShouldStop = false;
+
+            // Add timeout protection (30 seconds)
+            const timeoutId = setTimeout(() => {
+                if (algorithmRunning) {
+                    algorithmShouldStop = true;
+                    logToConsole('Execution timeout (30s limit)', true);
+                }
+            }, 30000);
 
             try {
                 logToConsole('Compiling...');
@@ -1136,21 +1160,28 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
                 currentInterpreter = new Interpreter(graphAPI);
                 await currentInterpreter.execute(ast);
 
-                logToConsole('--- Execution Complete ---');
+                if (!algorithmShouldStop) {
+                    logToConsole('--- Execution Complete ---');
+                }
             } catch (error) {
-                logToConsole('Error: ' + error.message, true);
-                console.error(error);
+                if (error.message === 'Algorithm stopped by user') {
+                    logToConsole('--- Execution Stopped ---', true);
+                } else {
+                    logToConsole('Error: ' + error.message, true);
+                    console.error(error);
+                }
             } finally {
+                clearTimeout(timeoutId);
                 algorithmRunning = false;
+                algorithmShouldStop = false;
                 currentInterpreter = null;
             }
         }
 
         function stopAlgorithm() {
             if (algorithmRunning) {
-                algorithmRunning = false;
-                currentInterpreter = null;
-                logToConsole('--- Execution Stopped ---', true);
+                algorithmShouldStop = true;
+                logToConsole('Stopping execution...', true);
             }
         }
 
