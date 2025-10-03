@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Network Connectivity Monitor - Ant Colony Simulation</title>
+    <title>Network Visualization</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         * {
@@ -22,8 +22,8 @@
 
         .main-container {
             display: grid;
-            grid-template-columns: 280px 1fr 280px;
-            grid-template-rows: 60px 1fr 180px;
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: 60px 1fr;
             height: 100vh;
             gap: 0;
         }
@@ -88,14 +88,6 @@
             height: 100%;
         }
 
-        .bottom-panel {
-            grid-column: 1 / -1;
-            background: #151515;
-            border-top: 1px solid #333;
-            padding: 15px 20px;
-            overflow-x: auto;
-        }
-
         .panel-section {
             margin-bottom: 20px;
         }
@@ -126,11 +118,6 @@
             width: 100%;
         }
 
-        input:focus, select:focus {
-            outline: none;
-            border-color: #00ff88;
-        }
-
         button {
             cursor: pointer;
             background: #1a1a1a;
@@ -144,114 +131,59 @@
             border-color: #00ff88;
         }
 
-        button.active {
-            background: #00ff88;
-            color: #0a0a0a;
-            border-color: #00ff88;
-        }
-
         button.danger {
-            background: #ff4444;
-            border-color: #ff4444;
-            color: white;
+            background: #ff4a4a;
+            border-color: #ff4a4a;
+            color: #0a0a0a;
         }
 
         button.danger:hover {
-            background: #ff6666;
-        }
-
-        .slider-control {
-            margin-bottom: 12px;
-        }
-
-        .slider-control label {
-            display: block;
-            font-size: 11px;
-            color: #888;
-            margin-bottom: 6px;
-        }
-
-        .slider-control input[type="range"] {
-            width: 100%;
-            height: 4px;
-            background: #333;
-            outline: none;
-            padding: 0;
-        }
-
-        .slider-control input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 14px;
-            height: 14px;
-            background: #00ff88;
-            cursor: pointer;
-            border-radius: 50%;
-        }
-
-        .slider-value {
-            font-size: 12px;
-            color: #00ff88;
-            font-weight: 600;
-        }
-
-        .status-bar {
-            position: fixed;
-            top: 70px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1a1a1a;
-            padding: 10px 20px;
-            border-radius: 4px;
-            border: 1px solid #333;
-            font-size: 13px;
-            z-index: 1000;
-            display: none;
+            background: #ff2020;
+            border-color: #ff2020;
         }
 
         .link {
-            stroke: #ffffff !important;
-            stroke-opacity: 0.8 !important;
-            stroke-dasharray: 8 4 !important;
-            animation: dash 20s linear infinite;
+            stroke: #666;
+            stroke-opacity: 0.6;
             fill: none;
-        }
-
-        .link.strong {
-            stroke: #00ff88 !important;
-            stroke-opacity: 1 !important;
-            stroke-dasharray: 10 5 !important;
-            animation: dash 10s linear infinite;
-        }
-
-        @keyframes dash {
-            to {
-                stroke-dashoffset: -1000;
-            }
+            stroke-width: 2px;
         }
 
         .node circle {
             stroke: #0a0a0a;
             stroke-width: 2px;
+            fill: #00ff88;
+            cursor: pointer;
+        }
+
+        .node.selected circle {
+            fill: #4a9eff;
+            stroke: #4a9eff;
+            stroke-width: 3px;
+        }
+
+        .node.offline circle {
+            fill: #ff4a4a;
         }
 
         .node text {
-            fill: #e0e0e0;
+            fill: #0a0a0a;
             text-anchor: middle;
             pointer-events: none;
             user-select: none;
+            font-weight: 600;
+            font-size: 12px;
         }
 
-        .status-online {
-            fill: #00ff88;
+        .node.selected text {
+            fill: #ffffff;
         }
 
-        .status-degraded {
-            fill: #ffaa00;
-        }
-
-        .status-offline {
-            fill: #ff4444;
+        .weight-label {
+            fill: #888;
+            font-size: 10px;
+            text-anchor: middle;
+            pointer-events: none;
         }
 
         .legend {
@@ -273,74 +205,82 @@
         }
 
         .legend-color {
-            width: 12px;
-            height: 12px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
         }
 
-        .bottom-controls {
-            display: flex;
-            gap: 15px;
-            align-items: flex-start;
-        }
-
-        .bottom-section {
-            flex: 1;
-        }
-
-        .bottom-section h3 {
-            font-size: 11px;
-            color: #00ff88;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-
-        .param-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #0a0a0a;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #333;
+        .status-bar {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a1a1a;
+            padding: 10px 20px;
             border-radius: 4px;
+            border: 1px solid #333;
+            font-size: 13px;
+            z-index: 1000;
+            display: none;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
+        .node-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 8px;
+        }
+
+        .node-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            background: #1a1a1a;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .node-item:hover {
+            background: #2a2a2a;
+        }
+
+        .node-item .name {
+            color: #00ff88;
+            font-weight: 600;
+        }
+
+        .node-item .id {
+            color: #888;
+            font-size: 10px;
+        }
+
+        .node-item button {
+            padding: 2px 6px;
+            font-size: 10px;
+            width: auto;
         }
     </style>
 </head>
 <body>
     <div class="main-container">
         <div class="header">
-            <h1>Network Connectivity Monitor - Ant Colony Optimization</h1>
-            <div class="stats-inline" id="statsInline">
+            <h1>Dynamic Network Visualization</h1>
+            <div class="stats-inline">
                 <div class="stat-inline">
                     <span class="label">Nodes:</span>
-                    <span class="value" id="statNodes">0</span>
+                    <span class="value" id="nodeCount">0</span>
                 </div>
                 <div class="stat-inline">
-                    <span class="label">Links:</span>
-                    <span class="value" id="statLinks">0</span>
+                    <span class="label">Edges:</span>
+                    <span class="value" id="edgeCount">0</span>
                 </div>
                 <div class="stat-inline">
-                    <span class="label">Partitions:</span>
-                    <span class="value" id="statPartitions">0</span>
-                </div>
-                <div class="stat-inline">
-                    <span class="label">Online:</span>
-                    <span class="value" id="statOnline">0</span>
+                    <span class="label">Selected:</span>
+                    <span class="value" id="selectedNode">None</span>
                 </div>
             </div>
         </div>
@@ -349,38 +289,39 @@
             <div class="panel-section">
                 <h3>Add Nodes</h3>
                 <div class="control-row">
-                    <input type="number" id="bulkCount" placeholder="Count" value="10" min="1" max="10000">
-                    <button onclick="bulkAddServers()">Bulk Add</button>
+                    <input type="text" id="nodeName" placeholder="Node name" value="">
+                    <button onclick="addSingleNode()">Add Single Node</button>
                 </div>
                 <div class="control-row">
-                    <input type="text" id="serverName" placeholder="Server name">
-                    <select id="serverStatus">
-                        <option value="online">Online</option>
-                        <option value="degraded">Degraded</option>
-                        <option value="offline">Offline</option>
+                    <input type="number" id="bulkCount" placeholder="Number of nodes" value="5" min="1" max="100">
+                    <button onclick="bulkAddNodes()">Add Multiple Nodes</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>Add Edge</h3>
+                <div class="control-row">
+                    <select id="sourceNode">
+                        <option value="">Select source node</option>
                     </select>
-                    <button onclick="addServer()">Add Single</button>
+                    <select id="targetNode">
+                        <option value="">Select target node</option>
+                    </select>
+                    <input type="number" id="edgeWeight" placeholder="Weight (optional)" min="1" max="100">
+                    <button onclick="addEdge()">Create Edge</button>
+                </div>
+                <div class="control-row">
+                    <label style="color: #888; font-size: 11px; margin-top: 5px;">
+                        Or click two nodes in the canvas
+                    </label>
                 </div>
             </div>
 
             <div class="panel-section">
-                <h3>Manual Links</h3>
+                <h3>Network Actions</h3>
                 <div class="control-row">
-                    <select id="fromServer"></select>
-                    <select id="toServer"></select>
-                    <button onclick="linkServers()">Connect</button>
-                </div>
-                <div class="control-row">
-                    <select id="disconnectServer"></select>
-                    <button onclick="disconnectServer()">Disconnect</button>
-                </div>
-            </div>
-
-            <div class="panel-section">
-                <h3>Actions</h3>
-                <div class="control-row">
-                    <button onclick="refreshNetwork()">Refresh</button>
-                    <button class="danger" onclick="clearNetwork()">Clear All</button>
+                    <button onclick="removeSelected()">Remove Selected Node</button>
+                    <button class="danger" onclick="clearNetwork()">Clear Network</button>
                 </div>
             </div>
         </div>
@@ -389,96 +330,56 @@
             <svg id="network"></svg>
             <div class="legend">
                 <div class="legend-item">
-                    <div class="legend-color status-online"></div>
-                    <span>Online</span>
+                    <div class="legend-color" style="background: #00ff88;"></div>
+                    <span>Online Node</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color status-degraded"></div>
-                    <span>Degraded</span>
+                    <div class="legend-color" style="background: #4a9eff;"></div>
+                    <span>Selected Node</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color status-offline"></div>
-                    <span>Offline</span>
+                    <div class="legend-color" style="background: #ff4a4a;"></div>
+                    <span>Offline Node</span>
                 </div>
             </div>
         </div>
 
         <div class="right-panel">
             <div class="panel-section">
-                <h3>Ant Colony Controls</h3>
-                <div class="control-row">
-                    <button id="antToggle" onclick="toggleAntColony()">Start Simulation</button>
-                </div>
-                <div class="slider-control">
-                    <label>Speed: <span class="slider-value" id="antSpeedValue">500ms</span></label>
-                    <input type="range" id="antSpeed" min="10" max="2000" value="500" oninput="updateSliderValue('antSpeed', 'antSpeedValue', 'ms')">
+                <h3>Network Nodes</h3>
+                <div class="node-list" id="nodeList">
+                    <div style="color: #888; font-size: 11px; text-align: center; padding: 20px;">
+                        No nodes yet
+                    </div>
                 </div>
             </div>
 
             <div class="panel-section">
-                <h3>Behavior Mode</h3>
-                <div class="control-row">
-                    <select id="antMode">
-                        <option value="strengthen">Strengthen Paths</option>
-                        <option value="explore">Explore & Connect</option>
-                        <option value="prune">Prune Weak Links</option>
-                        <option value="balanced" selected>Balanced (All)</option>
-                    </select>
+                <h3>Instructions</h3>
+                <div style="font-size: 11px; color: #888; line-height: 1.6;">
+                    <p><strong style="color: #00ff88;">Building Networks:</strong></p>
+                    <ul style="margin-left: 15px; margin-top: 5px;">
+                        <li>Add individual nodes or create multiple at once</li>
+                        <li>Click nodes to select them</li>
+                        <li>Create edges by selecting source and target</li>
+                        <li>Drag nodes to reposition them</li>
+                    </ul>
+                    <p style="margin-top: 10px;"><strong style="color: #00ff88;">Keyboard:</strong></p>
+                    <ul style="margin-left: 15px; margin-top: 5px;">
+                        <li>Delete key: Remove selected node</li>
+                    </ul>
                 </div>
             </div>
 
             <div class="panel-section">
-                <h3>Auto Refresh</h3>
+                <h3>Selection Mode</h3>
                 <div class="control-row">
-                    <button id="refreshToggle" onclick="toggleAutoRefresh()">Enable</button>
-                </div>
-                <div class="slider-control">
-                    <label>Interval: <span class="slider-value" id="refreshSpeedValue">1000ms</span></label>
-                    <input type="range" id="refreshSpeed" min="10" max="2000" value="1000" oninput="updateSliderValue('refreshSpeed', 'refreshSpeedValue', 'ms')">
-                </div>
-            </div>
-        </div>
-
-        <div class="bottom-panel">
-            <div class="bottom-controls">
-                <div class="bottom-section">
-                    <h3>Pheromone Parameters</h3>
-                    <div class="param-grid">
-                        <div class="slider-control">
-                            <label>Deposit Rate: <span class="slider-value" id="depositValue">0.5</span></label>
-                            <input type="range" id="depositRate" min="0" max="1" step="0.1" value="0.5" oninput="updateSliderValue('depositRate', 'depositValue')">
-                        </div>
-                        <div class="slider-control">
-                            <label>Evaporation: <span class="slider-value" id="evaporationValue">0.1</span></label>
-                            <input type="range" id="evaporationRate" min="0" max="0.5" step="0.05" value="0.1" oninput="updateSliderValue('evaporationRate', 'evaporationValue')">
-                        </div>
-                    </div>
-                </div>
-                <div class="bottom-section">
-                    <h3>Attraction Parameters</h3>
-                    <div class="param-grid">
-                        <div class="slider-control">
-                            <label>Cluster Bias: <span class="slider-value" id="clusterValue">0.7</span></label>
-                            <input type="range" id="clusterBias" min="0" max="1" step="0.1" value="0.7" oninput="updateSliderValue('clusterBias', 'clusterValue')">
-                        </div>
-                        <div class="slider-control">
-                            <label>Distance Factor: <span class="slider-value" id="distanceValue">0.3</span></label>
-                            <input type="range" id="distanceFactor" min="0" max="1" step="0.1" value="0.3" oninput="updateSliderValue('distanceFactor', 'distanceValue')">
-                        </div>
-                    </div>
-                </div>
-                <div class="bottom-section">
-                    <h3>Pruning Parameters</h3>
-                    <div class="param-grid">
-                        <div class="slider-control">
-                            <label>Weak Threshold: <span class="slider-value" id="weakValue">0.2</span></label>
-                            <input type="range" id="weakThreshold" min="0" max="1" step="0.1" value="0.2" oninput="updateSliderValue('weakThreshold', 'weakValue')">
-                        </div>
-                        <div class="slider-control">
-                            <label>Prune Rate: <span class="slider-value" id="pruneValue">0.05</span></label>
-                            <input type="range" id="pruneRate" min="0" max="0.5" step="0.05" value="0.05" oninput="updateSliderValue('pruneRate', 'pruneValue')">
-                        </div>
-                    </div>
+                    <label style="color: #888; font-size: 11px;">
+                        <input type="radio" name="mode" value="select" checked> Select nodes
+                    </label>
+                    <label style="color: #888; font-size: 11px;">
+                        <input type="radio" name="mode" value="connect"> Connect nodes
+                    </label>
                 </div>
             </div>
         </div>
@@ -497,292 +398,327 @@
             .attr("width", width)
             .attr("height", height);
 
+        // Add zoom/pan capability
+        const g = svg.append("g");
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 10])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            });
+        svg.call(zoom);
+
+        // Add arrowhead marker
+        const defs = svg.append("defs");
+        defs.append("marker")
+            .attr("id", "arrowhead")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 25)
+            .attr("refY", 0)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("fill", "#666");
+
         let simulation;
-        let currentData = { nodes: [], links: [] };
-        let linkGroup, nodeGroup;
-        let linkElements, nodeElements;
+        let nodes = [];
+        let links = [];
+        let selectedNode = null;
+        let firstSelectedForConnection = null;
 
-        // Pheromone map for ant colony optimization
-        let pheromones = new Map(); // key: "nodeA-nodeB", value: strength
-
-        function updateSliderValue(sliderId, displayId, suffix = '') {
-            const value = document.getElementById(sliderId).value;
-            document.getElementById(displayId).textContent = value + suffix;
-        }
+        let linkGroup = g.append("g").attr("class", "links");
+        let nodeGroup = g.append("g").attr("class", "nodes");
 
         function showStatus(message, isError = false) {
             const statusBar = document.getElementById('statusBar');
             const statusMessage = document.getElementById('statusMessage');
             statusMessage.textContent = message;
-            statusMessage.style.color = isError ? '#ff4444' : '#00ff88';
+            statusMessage.style.color = isError ? '#ff4a4a' : '#00ff88';
             statusBar.style.display = 'block';
             setTimeout(() => {
                 statusBar.style.display = 'none';
             }, 3000);
         }
 
-        async function fetchStats() {
-            const response = await fetch('/api/stats');
-            const stats = await response.json();
-            document.getElementById('statNodes').textContent = stats.servers;
-            document.getElementById('statLinks').textContent = stats.links;
-            document.getElementById('statPartitions').textContent = stats.partitions;
-            document.getElementById('statOnline').textContent = stats.online;
+        function getMode() {
+            return document.querySelector('input[name="mode"]:checked').value;
+        }
+
+        async function addSingleNode() {
+            const nameInput = document.getElementById('nodeName');
+            const name = nameInput.value.trim() || `N${nodes.length}`;
+
+            try {
+                const response = await fetch('/api/server', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, status: 'online' })
+                });
+
+                if (response.ok) {
+                    nameInput.value = '';
+                    await fetchNetwork();
+                    showStatus(`Added node: ${name}`);
+                }
+            } catch (error) {
+                showStatus('Failed to add node', true);
+            }
+        }
+
+        async function bulkAddNodes() {
+            const count = parseInt(document.getElementById('bulkCount').value);
+            if (!count || count < 1) {
+                showStatus('Invalid number of nodes', true);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/bulk-add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count: count })
+                });
+
+                if (response.ok) {
+                    await fetchNetwork();
+                    showStatus(`Added ${count} nodes`);
+                }
+            } catch (error) {
+                showStatus('Failed to add nodes', true);
+            }
+        }
+
+        async function addEdge() {
+            const sourceId = parseInt(document.getElementById('sourceNode').value);
+            const targetId = parseInt(document.getElementById('targetNode').value);
+            const weight = parseInt(document.getElementById('edgeWeight').value) || 1;
+
+            if (isNaN(sourceId) || isNaN(targetId)) {
+                showStatus('Please select both source and target nodes', true);
+                return;
+            }
+
+            if (sourceId === targetId) {
+                showStatus('Cannot create self-loop', true);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/link', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ from: sourceId, to: targetId, weight: weight })
+                });
+
+                if (response.ok) {
+                    await fetchNetwork();
+                    showStatus(`Created edge: ${sourceId} → ${targetId}`);
+                }
+            } catch (error) {
+                showStatus('Failed to create edge', true);
+            }
+        }
+
+        async function removeSelected() {
+            if (selectedNode === null) {
+                showStatus('No node selected', true);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/disconnect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ server: selectedNode })
+                });
+
+                if (response.ok) {
+                    selectedNode = null;
+                    await fetchNetwork();
+                    showStatus('Node removed');
+                }
+            } catch (error) {
+                showStatus('Failed to remove node', true);
+            }
+        }
+
+        async function clearNetwork() {
+            if (!confirm('Clear entire network?')) return;
+
+            try {
+                const response = await fetch('/api/clear', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    selectedNode = null;
+                    await fetchNetwork();
+                    showStatus('Network cleared');
+                }
+            } catch (error) {
+                showStatus('Failed to clear network', true);
+            }
         }
 
         async function fetchNetwork() {
-            const response = await fetch('/api/network');
-            const data = await response.json();
+            try {
+                const response = await fetch('/api/network');
+                const data = await response.json();
 
-            updateServerSelects(data.nodes);
+                nodes = data.nodes || [];
+                links = data.links || [];
 
-            if (data.nodes.length > 2000) {
-                showStatus(`Warning: ${data.nodes.length} nodes - may be slow`, true);
+                updateSelects();
+                updateVisualization();
+                updateNodeList();
+                updateStats();
+            } catch (error) {
+                console.error('Failed to fetch network:', error);
             }
-
-            // Initialize pheromones for new links
-            data.links.forEach(link => {
-                const key = getLinkKey(link.source, link.target);
-                if (!pheromones.has(key)) {
-                    pheromones.set(key, link.weight || 1);
-                }
-            });
-
-            if (currentData.nodes.length === 0) {
-                initializeNetwork(data);
-            } else {
-                updateNetworkIncrementally(data);
-            }
-
-            currentData = data;
-            fetchStats();
         }
 
-        function getLinkKey(a, b) {
-            const idA = typeof a === 'object' ? a.id : a;
-            const idB = typeof b === 'object' ? b.id : b;
-            return idA < idB ? `${idA}-${idB}` : `${idB}-${idA}`;
-        }
+        function updateSelects() {
+            const sourceSelect = document.getElementById('sourceNode');
+            const targetSelect = document.getElementById('targetNode');
 
-        function updateServerSelects(nodes) {
-            const fromSelect = document.getElementById('fromServer');
-            const toSelect = document.getElementById('toServer');
-            const disconnectSelect = document.getElementById('disconnectServer');
-
-            [fromSelect, toSelect, disconnectSelect].forEach(select => {
-                select.innerHTML = nodes.map(n =>
-                    `<option value="${n.id}">${n.name} (${n.id})</option>`
-                ).join('');
+            [sourceSelect, targetSelect].forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">Select node</option>' +
+                    nodes.map(n => `<option value="${n.id}">${n.name}</option>`).join('');
+                select.value = currentValue;
             });
         }
 
-        function initializeNetwork(data) {
-            svg.selectAll("*").remove();
-            if (simulation) simulation.stop();
-
-            const nodeCount = data.nodes.length;
-            const screenArea = width * height;
-            const nodeArea = screenArea / Math.max(nodeCount, 1);
-
-            // Scale based on available space per node
-            const baseRadius = Math.max(8, Math.min(30, Math.sqrt(nodeArea) / 8));
-            const linkDistance = baseRadius * 4;
-            const chargeStrength = -baseRadius * 15;
-
-            simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links)
-                    .id(d => d.id)
-                    .distance(linkDistance)
-                    .strength(0.3))
-                .force("charge", d3.forceManyBody().strength(chargeStrength))
-                .force("center", d3.forceCenter(width / 2, height / 2).strength(0.1))
-                .force("collision", d3.forceCollide().radius(baseRadius * 2))
-                .force("x", d3.forceX(width / 2).strength(0.02))
-                .force("y", d3.forceY(height / 2).strength(0.02))
-                .alphaDecay(0.02)
-                .velocityDecay(0.4);
-
-            linkGroup = svg.append("g");
-            nodeGroup = svg.append("g");
-
-            const nodeRadius = baseRadius;
-            const fontSize = baseRadius > 15 ? 12 : (baseRadius > 10 ? 10 : 0);
-
-            linkElements = linkGroup.selectAll("line")
-                .data(data.links, d => getLinkKey(d.source, d.target))
-                .join("line")
-                .attr("class", d => {
-                    const pheromone = pheromones.get(getLinkKey(d.source, d.target)) || 1;
-                    return pheromone > 5 ? "link strong" : "link";
-                })
-                .attr("stroke", "#ffffff")
-                .attr("stroke-width", d => {
-                    const weight = d.weight || 1;
-                    const pheromone = pheromones.get(getLinkKey(d.source, d.target)) || 1;
-                    return Math.max(2, (weight + pheromone));
-                })
-                .attr("stroke-dasharray", "8 4");
-
-            console.log(`Initialized ${data.links.length} links`);
-
-            nodeElements = nodeGroup.selectAll("g")
-                .data(data.nodes, d => d.id)
-                .join("g")
-                .attr("class", "node")
-                .call(d3.drag()
-                    .on("start", dragstarted)
-                    .on("drag", dragged)
-                    .on("end", dragended));
-
-            nodeElements.append("circle")
-                .attr("r", nodeRadius)
-                .attr("class", d => `status-${d.status}`);
-
-            if (fontSize > 0) {
-                nodeElements.append("text")
-                    .text(d => d.name)
-                    .attr("dy", ".35em")
-                    .style("font-size", `${fontSize}px`);
+        function updateNodeList() {
+            const nodeList = document.getElementById('nodeList');
+            if (nodes.length === 0) {
+                nodeList.innerHTML = '<div style="color: #888; font-size: 11px; text-align: center; padding: 20px;">No nodes yet</div>';
+                return;
             }
 
-            simulation.on("tick", tick);
+            nodeList.innerHTML = nodes.map(n => `
+                <div class="node-item">
+                    <div>
+                        <span class="name">${n.name}</span>
+                        <span class="id">#${n.id}</span>
+                    </div>
+                    <button onclick="selectNodeById(${n.id})">Select</button>
+                </div>
+            `).join('');
         }
 
-        function updateNetworkIncrementally(data) {
-            // Preserve all existing positions
-            const positionMap = new Map();
-            const oldNodes = simulation.nodes();
-            oldNodes.forEach(n => {
-                positionMap.set(n.id, {
-                    x: n.x,
-                    y: n.y,
-                    vx: n.vx || 0,
-                    vy: n.vy || 0,
-                    fx: n.fx,
-                    fy: n.fy
+        function updateStats() {
+            document.getElementById('nodeCount').textContent = nodes.length;
+            document.getElementById('edgeCount').textContent = links.length;
+            document.getElementById('selectedNode').textContent =
+                selectedNode !== null ? nodes.find(n => n.id === selectedNode)?.name || 'None' : 'None';
+        }
+
+        function selectNodeById(id) {
+            selectedNode = id;
+            updateVisualization();
+            updateStats();
+        }
+
+        function updateVisualization() {
+            if (!linkGroup || !nodeGroup) return;
+
+            // Initialize simulation if needed
+            if (!simulation) {
+                simulation = d3.forceSimulation(nodes)
+                    .force("link", d3.forceLink(links).id(d => d.id).distance(150))
+                    .force("charge", d3.forceManyBody().strength(-500))
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .force("collision", d3.forceCollide().radius(40));
+
+                simulation.on("tick", () => {
+                    linkGroup.selectAll("line")
+                        .attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y);
+
+                    linkGroup.selectAll("text")
+                        .attr("x", d => (d.source.x + d.target.x) / 2)
+                        .attr("y", d => (d.source.y + d.target.y) / 2);
+
+                    nodeGroup.selectAll("g")
+                        .attr("transform", d => `translate(${d.x},${d.y})`);
                 });
-            });
+            }
 
-            // Apply positions to new data, or initialize at center
-            data.nodes.forEach(n => {
-                const pos = positionMap.get(n.id);
-                if (pos) {
-                    Object.assign(n, pos);
+            // Update simulation data
+            simulation.nodes(nodes);
+            simulation.force("link").links(links);
+            simulation.alpha(0.3).restart();
+
+            // Update links
+            linkGroup.selectAll("line")
+                .data(links, d => `${d.source.id || d.source}-${d.target.id || d.target}`)
+                .join("line")
+                .attr("class", "link")
+                .attr("marker-end", "url(#arrowhead)");
+
+            // Update link labels
+            linkGroup.selectAll("text")
+                .data(links, d => `${d.source.id || d.source}-${d.target.id || d.target}`)
+                .join("text")
+                .attr("class", "weight-label")
+                .text(d => d.weight || 1);
+
+            // Update nodes
+            const nodeElements = nodeGroup.selectAll("g")
+                .data(nodes, d => d.id)
+                .join("g")
+                .attr("class", d => {
+                    let classes = "node";
+                    if (d.id === selectedNode) classes += " selected";
+                    if (d.status === "offline") classes += " offline";
+                    return classes;
+                })
+                .call(d3.drag()
+                    .on("start", dragStarted)
+                    .on("drag", dragged)
+                    .on("end", dragEnded))
+                .on("click", nodeClicked);
+
+            nodeElements.each(function(d) {
+                const g = d3.select(this);
+                g.selectAll("*").remove();
+                g.append("circle").attr("r", 20);
+                g.append("text")
+                    .text(d.name)
+                    .attr("dy", ".35em");
+            });
+        }
+
+        function nodeClicked(event, d) {
+            event.stopPropagation();
+
+            const mode = getMode();
+            if (mode === 'select') {
+                selectedNode = d.id;
+                firstSelectedForConnection = null;
+                updateVisualization();
+                updateStats();
+            } else if (mode === 'connect') {
+                if (firstSelectedForConnection === null) {
+                    firstSelectedForConnection = d.id;
+                    showStatus(`First node selected: ${d.name}. Click another node to connect.`);
                 } else {
-                    // New nodes start at center with small random offset
-                    n.x = width / 2 + (Math.random() - 0.5) * 100;
-                    n.y = height / 2 + (Math.random() - 0.5) * 100;
-                    n.vx = 0;
-                    n.vy = 0;
+                    if (firstSelectedForConnection !== d.id) {
+                        // Create connection
+                        document.getElementById('sourceNode').value = firstSelectedForConnection;
+                        document.getElementById('targetNode').value = d.id;
+                        addEdge();
+                    }
+                    firstSelectedForConnection = null;
                 }
-            });
-
-            const nodeCount = data.nodes.length;
-            const screenArea = width * height;
-            const nodeArea = screenArea / Math.max(nodeCount, 1);
-            const baseRadius = Math.max(8, Math.min(30, Math.sqrt(nodeArea) / 8));
-
-            const nodeRadius = baseRadius;
-            const fontSize = baseRadius > 15 ? 12 : (baseRadius > 10 ? 10 : 0);
-
-            // CRITICAL: Update simulation nodes FIRST before updating links
-            // This ensures D3's forceLink can properly bind source/target references
-            simulation.nodes(data.nodes);
-
-            // Get the force and update its links - D3 will re-bind the references
-            const linkForce = simulation.force("link");
-            linkForce.links(data.links);
-
-            // Initialize the link force to bind source/target to node objects
-            linkForce.initialize(data.nodes);
-
-            // Update visual elements with proper join
-            linkElements = linkGroup.selectAll("line")
-                .data(data.links, d => getLinkKey(d.source, d.target))
-                .join(
-                    enter => enter.append("line")
-                        .attr("class", d => {
-                            const pheromone = pheromones.get(getLinkKey(d.source, d.target)) || 1;
-                            return pheromone > 5 ? "link strong" : "link";
-                        })
-                        .attr("stroke", "#ffffff")
-                        .attr("stroke-width", d => {
-                            const weight = d.weight || 1;
-                            const pheromone = pheromones.get(getLinkKey(d.source, d.target)) || 1;
-                            return Math.max(2, (weight + pheromone));
-                        })
-                        .attr("stroke-dasharray", "8 4"),
-                    update => update
-                        .attr("class", d => {
-                            const pheromone = pheromones.get(getLinkKey(d.source, d.target)) || 1;
-                            return pheromone > 5 ? "link strong" : "link";
-                        })
-                        .attr("stroke", d => {
-                            const pheromone = pheromones.get(getLinkKey(d.source, d.target)) || 1;
-                            return pheromone > 5 ? "#00ff88" : "#ffffff";
-                        })
-                        .attr("stroke-width", d => {
-                            const weight = d.weight || 1;
-                            const pheromone = pheromones.get(getLinkKey(d.source, d.target)) || 1;
-                            return Math.max(2, (weight + pheromone));
-                        }),
-                    exit => exit.remove()
-                );
-
-            console.log(`Updated ${data.links.length} links`);
-
-            nodeElements = nodeGroup.selectAll("g")
-                .data(data.nodes, d => d.id)
-                .join(
-                    enter => {
-                        const g = enter.append("g")
-                            .attr("class", "node")
-                            .call(d3.drag()
-                                .on("start", dragstarted)
-                                .on("drag", dragged)
-                                .on("end", dragended));
-
-                        g.append("circle")
-                            .attr("r", nodeRadius)
-                            .attr("class", d => `status-${d.status}`);
-
-                        if (fontSize > 0) {
-                            g.append("text")
-                                .text(d => d.name)
-                                .attr("dy", ".35em")
-                                .style("font-size", `${fontSize}px`);
-                        }
-                        return g;
-                    },
-                    update => update.select("circle")
-                        .attr("class", d => `status-${d.status}`),
-                    exit => exit.remove()
-                );
-
-            // Very gentle restart to prevent nodes from flying
-            simulation.alpha(0.05).alphaTarget(0).restart();
-        }
-
-        function tick() {
-            simulation.nodes().forEach(d => {
-                d.x = Math.max(30, Math.min(width - 30, d.x));
-                d.y = Math.max(30, Math.min(height - 30, d.y));
-            });
-
-            if (linkElements) {
-                linkElements
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y);
-            }
-
-            if (nodeElements) {
-                nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
             }
         }
 
-        function dragstarted(event, d) {
+        function dragStarted(event, d) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
             d.fy = d.y;
@@ -793,227 +729,23 @@
             d.fy = event.y;
         }
 
-        function dragended(event, d) {
+        function dragEnded(event, d) {
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
         }
 
-        async function bulkAddServers() {
-            const count = parseInt(document.getElementById('bulkCount').value);
-            if (!count || count < 1) {
-                showStatus('Please enter a valid number', true);
-                return;
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                e.preventDefault();
+                removeSelected();
             }
-            if (count > 10000) {
-                showStatus('Maximum 10000 nodes', true);
-                return;
-            }
-
-            const response = await fetch('/api/bulk-add', {
-                method: 'POST',
-                body: JSON.stringify({ count })
-            });
-            const result = await response.json();
-            showStatus(`Added ${result.created} nodes`);
-            fetchNetwork();
-        }
-
-        async function addServer() {
-            const name = document.getElementById('serverName').value;
-            const status = document.getElementById('serverStatus').value;
-            if (!name) {
-                showStatus('Enter a server name', true);
-                return;
-            }
-
-            await fetch('/api/server', {
-                method: 'POST',
-                body: JSON.stringify({ name, status })
-            });
-            document.getElementById('serverName').value = '';
-            showStatus(`Added: ${name}`);
-            fetchNetwork();
-        }
-
-        async function linkServers() {
-            const from = parseInt(document.getElementById('fromServer').value);
-            const to = parseInt(document.getElementById('toServer').value);
-            await fetch('/api/link', {
-                method: 'POST',
-                body: JSON.stringify({ from, to })
-            });
-            fetchNetwork();
-        }
-
-        async function disconnectServer() {
-            const server = parseInt(document.getElementById('disconnectServer').value);
-            await fetch('/api/disconnect', {
-                method: 'POST',
-                body: JSON.stringify({ server })
-            });
-            fetchNetwork();
-        }
-
-        function refreshNetwork() {
-            fetchNetwork();
-        }
-
-        async function clearNetwork() {
-            if (confirm('Clear all nodes and links?')) {
-                await fetch('/api/clear', { method: 'POST' });
-                showStatus('Network cleared');
-                pheromones.clear();
-                currentData = { nodes: [], links: [] };
-                fetchNetwork();
-            }
-        }
-
-        // Auto-refresh
-        let autoRefreshInterval = null;
-        let autoRefreshRunning = false;
-
-        function toggleAutoRefresh() {
-            const button = document.getElementById('refreshToggle');
-            if (!autoRefreshRunning) {
-                const interval = parseInt(document.getElementById('refreshSpeed').value);
-                autoRefreshInterval = setInterval(() => fetchNetwork(), interval);
-                autoRefreshRunning = true;
-                button.textContent = 'Disable';
-                button.classList.add('active');
-            } else {
-                clearInterval(autoRefreshInterval);
-                autoRefreshRunning = false;
-                button.textContent = 'Enable';
-                button.classList.remove('active');
-            }
-        }
-
-        // Ant Colony Optimization
-        let antInterval = null;
-        let antRunning = false;
-
-        function toggleAntColony() {
-            const button = document.getElementById('antToggle');
-            if (!antRunning) {
-                const speed = parseInt(document.getElementById('antSpeed').value);
-                antInterval = setInterval(runAntColony, speed);
-                antRunning = true;
-                button.textContent = 'Stop Simulation';
-                button.classList.add('active');
-                showStatus('Ant colony simulation started');
-            } else {
-                clearInterval(antInterval);
-                antRunning = false;
-                button.textContent = 'Start Simulation';
-                button.classList.remove('active');
-                showStatus('Ant colony simulation stopped');
-            }
-        }
-
-        async function runAntColony() {
-            const mode = document.getElementById('antMode').value;
-            const depositRate = parseFloat(document.getElementById('depositRate').value);
-            const evaporationRate = parseFloat(document.getElementById('evaporationRate').value);
-            const clusterBias = parseFloat(document.getElementById('clusterBias').value);
-            const distanceFactor = parseFloat(document.getElementById('distanceFactor').value);
-            const weakThreshold = parseFloat(document.getElementById('weakThreshold').value);
-            const pruneRate = parseFloat(document.getElementById('pruneRate').value);
-
-            if (currentData.nodes.length < 2) return;
-
-            // Evaporate all pheromones
-            pheromones.forEach((value, key) => {
-                pheromones.set(key, Math.max(0.1, value * (1 - evaporationRate)));
-            });
-
-            // Calculate node attractiveness based on cluster membership and degree
-            const nodeAttractiveness = new Map();
-            currentData.nodes.forEach(node => {
-                const degree = currentData.links.filter(l =>
-                    (l.source.id || l.source) === node.id || (l.target.id || l.target) === node.id
-                ).length;
-                const clusterSize = currentData.nodes.filter(n => n.group === node.group).length;
-                nodeAttractiveness.set(node.id, degree + clusterSize * clusterBias);
-            });
-
-            // Balanced or mode-specific behavior
-            if (mode === 'strengthen' || mode === 'balanced') {
-                // Strengthen existing paths based on cluster proximity
-                currentData.links.forEach(link => {
-                    const sourceId = link.source.id || link.source;
-                    const targetId = link.target.id || link.target;
-                    const sourceNode = currentData.nodes.find(n => n.id === sourceId);
-                    const targetNode = currentData.nodes.find(n => n.id === targetId);
-
-                    if (sourceNode && targetNode && sourceNode.group === targetNode.group) {
-                        const key = getLinkKey(sourceId, targetId);
-                        const current = pheromones.get(key) || 1;
-                        pheromones.set(key, current + depositRate * 2);
-                    }
-                });
-            }
-
-            if (mode === 'explore' || mode === 'balanced') {
-                // Explore: Create new connections based on attractiveness
-                const nodeA = currentData.nodes[Math.floor(Math.random() * currentData.nodes.length)];
-
-                // Find attractive targets
-                const candidates = currentData.nodes
-                    .filter(n => n.id !== nodeA.id)
-                    .map(n => ({
-                        node: n,
-                        score: (nodeAttractiveness.get(n.id) || 1) *
-                               (n.group === nodeA.group ? clusterBias : (1 - clusterBias)) *
-                               (1 / (Math.abs(n.x - nodeA.x) + Math.abs(n.y - nodeA.y) + 1)) * distanceFactor
-                    }))
-                    .sort((a, b) => b.score - a.score);
-
-                if (candidates.length > 0 && Math.random() < 0.3) {
-                    const target = candidates[0].node;
-                    await fetch('/api/link', {
-                        method: 'POST',
-                        body: JSON.stringify({ from: nodeA.id, to: target.id })
-                    });
-                    const key = getLinkKey(nodeA.id, target.id);
-                    pheromones.set(key, depositRate * 3);
-                }
-            }
-
-            if (mode === 'prune' || mode === 'balanced') {
-                // Prune weak links
-                const weakLinks = currentData.links.filter(link => {
-                    const key = getLinkKey(link.source, link.target);
-                    return (pheromones.get(key) || 1) < weakThreshold;
-                });
-
-                if (weakLinks.length > 0 && Math.random() < pruneRate) {
-                    const link = weakLinks[Math.floor(Math.random() * weakLinks.length)];
-                    const sourceId = link.source.id || link.source;
-                    await fetch('/api/disconnect', {
-                        method: 'POST',
-                        body: JSON.stringify({ server: sourceId })
-                    });
-                    pheromones.delete(getLinkKey(sourceId, link.target));
-                }
-            }
-
-            // Refresh visualization
-            fetchNetwork();
-        }
+        });
 
         // Initial load
         fetchNetwork();
-
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            const container = document.querySelector('.canvas-container');
-            const newWidth = container.clientWidth;
-            const newHeight = container.clientHeight;
-            svg.attr("width", newWidth).attr("height", newHeight);
-            simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2));
-            simulation.alpha(0.3).restart();
-        });
+        setInterval(fetchNetwork, 2000);
     </script>
 </body>
 </html>
