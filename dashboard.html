@@ -368,15 +368,8 @@
             <div class="panel-section">
                 <h3>Create Network</h3>
                 <div class="control-row">
-                    <input type="number" id="networkSize" placeholder="Number of nodes" value="8" min="2" max="200">
-                    <label style="font-size: 11px; color: #888; margin-top: 5px;">
-                        Connectivity:
-                    </label>
-                    <input type="range" id="connectivity" min="1" max="4" value="2" step="1">
-                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: #666; margin-top: -5px;">
-                        <span>Sparse</span>
-                        <span>Dense</span>
-                    </div>
+                    <input type="number" id="networkSize" placeholder="Number of nodes" value="8" min="2" max="1000">
+                    <input type="number" id="connectivity" placeholder="Connectivity (1=sparse, 4=dense)" value="2" min="1" max="4">
                     <button onclick="createNetwork()">Create Network</button>
                 </div>
             </div>
