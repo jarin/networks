@@ -491,6 +491,9 @@
                     <select id="exampleSelect" onchange="loadExample()">
                         <option value="">Select Example...</option>
                         <option value="bfs">BFS - Breadth First Search</option>
+                        <option value="dfs">DFS - Depth First Search</option>
+                        <option value="dijkstra">Dijkstra - Shortest Path</option>
+                        <option value="components">Connected Components</option>
                     </select>
                     <button onclick="runAlgorithm()" style="background: #00ff88; color: #0a0a0a;">Run</button>
                     <button onclick="stopAlgorithm()" style="background: #ff4a4a; color: #0a0a0a;">Stop</button>
@@ -1010,7 +1013,141 @@ while not is_empty(q) {
     sleep(50)
 }
 
-log("BFS complete! Visited " + size(visited) + " nodes")`
+log("BFS complete! Visited " + size(visited) + " nodes")`,
+
+            dfs: `// DFS - Depth First Search from node 0
+let visited = {}
+let source = 0
+
+function dfs(node) {
+    add(visited, node)
+    highlight_node(node, "current")
+    log("Visiting node " + node)
+    sleep(100)
+
+    let neighbors_list = neighbors(node)
+    for neighbor in neighbors_list {
+        if not has(visited, neighbor) {
+            highlight_edge(node, neighbor, "active")
+            sleep(50)
+            dfs(neighbor)
+        }
+    }
+
+    highlight_node(node, "visited")
+}
+
+log("Starting DFS from node " + source)
+dfs(source)
+log("DFS complete! Visited " + size(visited) + " nodes")`,
+
+            dijkstra: `// Dijkstra's shortest path from node 0
+let source = 0
+let dist = {}
+let visited = {}
+let previous = {}
+
+// Initialize distances
+for node in nodes() {
+    if node == source {
+        put(dist, node, 0)
+    } else {
+        put(dist, node, 99999)
+    }
+}
+
+highlight_node(source, "current")
+log("Starting Dijkstra from node " + source)
+sleep(100)
+
+// Process all nodes
+let remaining = node_count()
+while remaining > 0 {
+    // Find unvisited node with minimum distance
+    let min_dist = 99999
+    let min_node = -1
+
+    for node in nodes() {
+        if not has(visited, node) {
+            let node_dist = get(dist, node)
+            if node_dist < min_dist {
+                min_dist = node_dist
+                min_node = node
+            }
+        }
+    }
+
+    if min_node == -1 {
+        break
+    }
+
+    add(visited, min_node)
+    highlight_node(min_node, "visiting")
+    set_node_label(min_node, "d=" + get(dist, min_node))
+    log("Processing node " + min_node + " (dist=" + get(dist, min_node) + ")")
+    sleep(200)
+
+    // Relax neighbors
+    let neighbors_list = neighbors(min_node)
+    for neighbor in neighbors_list {
+        if not has(visited, neighbor) {
+            let edge_weight = weight(min_node, neighbor)
+            let new_dist = get(dist, min_node) + edge_weight
+            let old_dist = get(dist, neighbor)
+
+            if new_dist < old_dist {
+                put(dist, neighbor, new_dist)
+                put(previous, neighbor, min_node)
+                highlight_edge(min_node, neighbor, "relaxed")
+                log("  Relaxed edge to " + neighbor + ": " + new_dist)
+                sleep(100)
+            }
+        }
+    }
+
+    highlight_node(min_node, "visited")
+    remaining = remaining - 1
+}
+
+log("Dijkstra complete!")`,
+
+            components: `// Find connected components
+let visited = {}
+let component = {}
+let comp_id = 0
+
+function explore(node, id) {
+    add(visited, node)
+    put(component, node, id)
+    highlight_node(node, "visiting")
+    set_node_label(node, "C" + id)
+    log("  Node " + node + " -> Component " + id)
+    sleep(50)
+
+    let neighbors_list = neighbors(node)
+    for neighbor in neighbors_list {
+        if not has(visited, neighbor) {
+            highlight_edge(node, neighbor, "active")
+            explore(neighbor, id)
+        }
+    }
+
+    highlight_node(node, "visited")
+}
+
+log("Finding connected components...")
+sleep(100)
+
+for node in nodes() {
+    if not has(visited, node) {
+        log("Component " + comp_id + ":")
+        explore(node, comp_id)
+        comp_id = comp_id + 1
+        sleep(200)
+    }
+}
+
+log("Found " + comp_id + " connected component(s)")`
         };
 
         function loadExample() {
