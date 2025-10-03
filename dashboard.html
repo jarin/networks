@@ -442,6 +442,8 @@
         let links = [];
         let selectedNode = null;
         let firstSelectedForConnection = null;
+        let lastNodeCount = 0;
+        let lastLinkCount = 0;
 
         let linkGroup = g.append("g").attr("class", "links");
         let nodeGroup = g.append("g").attr("class", "nodes");
@@ -713,6 +715,11 @@
         function updateVisualization() {
             if (!linkGroup || !nodeGroup) return;
 
+            // Check if data actually changed
+            const dataChanged = nodes.length !== lastNodeCount || links.length !== lastLinkCount;
+            lastNodeCount = nodes.length;
+            lastLinkCount = links.length;
+
             // Initialize simulation if needed
             if (!simulation) {
                 simulation = d3.forceSimulation(nodes)
@@ -740,7 +747,11 @@
             // Update simulation data
             simulation.nodes(nodes);
             simulation.force("link").links(links);
-            simulation.alpha(0.3).restart();
+
+            // Only restart simulation if data changed
+            if (dataChanged) {
+                simulation.alpha(0.3).restart();
+            }
 
             // Update links
             linkGroup.selectAll("line")
@@ -834,7 +845,6 @@
 
         // Initial load
         fetchNetwork();
-        setInterval(fetchNetwork, 2000);
     </script>
 </body>
 </html>
