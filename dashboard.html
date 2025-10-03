@@ -287,6 +287,22 @@
 
         <div class="left-panel">
             <div class="panel-section">
+                <h3>Create Network</h3>
+                <div class="control-row">
+                    <input type="number" id="networkSize" placeholder="Number of nodes" value="8" min="2" max="200">
+                    <label style="font-size: 11px; color: #888; margin-top: 5px;">
+                        Connectivity:
+                    </label>
+                    <input type="range" id="connectivity" min="1" max="4" value="2" step="1">
+                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: #666; margin-top: -5px;">
+                        <span>Sparse</span>
+                        <span>Dense</span>
+                    </div>
+                    <button onclick="createNetwork()">Create Network</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
                 <h3>Add Nodes</h3>
                 <div class="control-row">
                     <input type="text" id="nodeName" placeholder="Node name" value="">
@@ -443,6 +459,79 @@
 
         function getMode() {
             return document.querySelector('input[name="mode"]:checked').value;
+        }
+
+        async function createNetwork() {
+            const count = parseInt(document.getElementById('networkSize').value);
+            const connectivity = parseInt(document.getElementById('connectivity').value);
+
+            if (!count || count < 2) {
+                showStatus('Need at least 2 nodes', true);
+                return;
+            }
+
+            try {
+                // First clear the network
+                await fetch('/api/clear', { method: 'POST' });
+
+                // Add nodes
+                const bulkResponse = await fetch('/api/bulk-add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count: count })
+                });
+
+                if (!bulkResponse.ok) {
+                    showStatus('Failed to create nodes', true);
+                    return;
+                }
+
+                // Wait a bit for nodes to be created
+                await new Promise(resolve => setTimeout(resolve, 100));
+                await fetchNetwork();
+
+                // Create edges based on connectivity
+                let minConnections, maxConnections;
+                switch(connectivity) {
+                    case 1: minConnections = 1; maxConnections = 2; break; // Sparse
+                    case 2: minConnections = 2; maxConnections = 4; break; // Medium
+                    case 3: minConnections = 3; maxConnections = 6; break; // Dense
+                    case 4: minConnections = 4; maxConnections = 8; break; // Very Dense
+                    default: minConnections = 2; maxConnections = 4;
+                }
+
+                const existingEdges = new Set();
+
+                for (let i = 0; i < count; i++) {
+                    const connections = minConnections + Math.floor(Math.random() * (maxConnections - minConnections + 1));
+
+                    for (let j = 0; j < connections; j++) {
+                        // Mix of sequential and random connections
+                        const target = j < 2 ?
+                            (i + j + 1) % count :
+                            Math.floor(Math.random() * count);
+
+                        if (i !== target) {
+                            const edgeKey = `${i}-${target}`;
+                            if (!existingEdges.has(edgeKey)) {
+                                existingEdges.add(edgeKey);
+                                const weight = 1 + Math.floor(Math.random() * 10);
+
+                                await fetch('/api/link', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ from: i, to: target, weight: weight })
+                                });
+                            }
+                        }
+                    }
+                }
+
+                await fetchNetwork();
+                showStatus(`Created network with ${count} nodes`);
+            } catch (error) {
+                showStatus('Failed to create network', true);
+            }
         }
 
         async function addSingleNode() {
