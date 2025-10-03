@@ -964,25 +964,28 @@ enqueue(q, source)
 add(visited, source)
 highlight_node(source, "current")
 log("Starting BFS from node " + source)
-sleep(500)
+sleep(100)
 
 while not is_empty(q) {
     let current = dequeue(q)
     highlight_node(current, "visiting")
     log("Visiting node " + current)
-    sleep(300)
 
-    for neighbor in neighbors(current) {
+    let neighbors_list = neighbors(current)
+    log("  Found " + len(neighbors_list) + " neighbors")
+
+    for neighbor in neighbors_list {
         if not has(visited, neighbor) {
             add(visited, neighbor)
             enqueue(q, neighbor)
             highlight_edge(current, neighbor, "active")
             log("  Discovered node " + neighbor)
-            sleep(200)
+            sleep(50)
         }
     }
 
     highlight_node(current, "visited")
+    sleep(50)
 }
 
 log("BFS complete! Visited " + size(visited) + " nodes")`
@@ -1154,20 +1157,27 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
             }, 30000);
 
             try {
+                console.log('[DEBUG] Starting compilation...');
                 logToConsole('Compiling...');
                 const lexer = new Lexer(code);
                 const tokens = lexer.tokenize();
+                console.log('[DEBUG] Tokens:', tokens.length);
                 const parser = new Parser(tokens);
                 const ast = parser.parse();
+                console.log('[DEBUG] AST created');
 
                 logToConsole('Executing...');
+                console.log('[DEBUG] Creating interpreter...');
                 currentInterpreter = new Interpreter(graphAPI);
+                console.log('[DEBUG] Starting execution...');
                 await currentInterpreter.execute(ast);
+                console.log('[DEBUG] Execution finished');
 
                 if (!algorithmShouldStop) {
                     logToConsole('--- Execution Complete ---');
                 }
             } catch (error) {
+                console.error('[DEBUG] Error caught:', error);
                 if (error.message === 'Algorithm stopped by user') {
                     logToConsole('--- Execution Stopped ---', true);
                 } else {
@@ -1175,6 +1185,7 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
                     console.error(error);
                 }
             } finally {
+                console.log('[DEBUG] Cleanup...');
                 clearTimeout(timeoutId);
                 algorithmRunning = false;
                 algorithmShouldStop = false;
