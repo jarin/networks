@@ -1021,25 +1021,30 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
             linkGroup.selectAll("text").remove();
         }
 
+        // Helper to get node ID (handles D3 force simulation object refs)
+        function getNodeId(node) {
+            return node.id !== undefined ? node.id : node;
+        }
+
         // Graph API for NetLang
         const graphAPI = {
             nodes: () => nodes.map(n => n.id),
             neighbors: (id) => {
                 return links
-                    .filter(l => (l.source.id || l.source) === id)
-                    .map(l => l.target.id || l.target);
+                    .filter(l => getNodeId(l.source) === id)
+                    .map(l => getNodeId(l.target));
             },
             edges: () => {
                 return links.map(l => ({
-                    from: l.source.id || l.source,
-                    to: l.target.id || l.target,
+                    from: getNodeId(l.source),
+                    to: getNodeId(l.target),
                     weight: l.weight || 1
                 }));
             },
             weight: (from, to) => {
                 const link = links.find(l =>
-                    (l.source.id || l.source) === from &&
-                    (l.target.id || l.target) === to
+                    getNodeId(l.source) === from &&
+                    getNodeId(l.target) === to
                 );
                 return link ? (link.weight || 1) : null;
             },
@@ -1062,8 +1067,8 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
                     'relaxed': '#ffaa00'
                 };
                 linkGroup.selectAll("line")
-                    .filter(d => (d.source.id || d.source) === from &&
-                                 (d.target.id || d.target) === to)
+                    .filter(d => getNodeId(d.source) === from &&
+                                 getNodeId(d.target) === to)
                     .attr("stroke", colorMap[color] || color)
                     .attr("stroke-width", 3);
             },
@@ -1075,14 +1080,14 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
             setEdgeLabel: (from, to, text) => {
                 // Find edge midpoint and add label
                 const link = links.find(l =>
-                    (l.source.id || l.source) === from &&
-                    (l.target.id || l.target) === to
+                    getNodeId(l.source) === from &&
+                    getNodeId(l.target) === to
                 );
                 if (link) {
-                    const sx = link.source.x || nodes[link.source].x;
-                    const sy = link.source.y || nodes[link.source].y;
-                    const tx = link.target.x || nodes[link.target].x;
-                    const ty = link.target.y || nodes[link.target].y;
+                    const sx = link.source.x !== undefined ? link.source.x : nodes[link.source].x;
+                    const sy = link.source.y !== undefined ? link.source.y : nodes[link.source].y;
+                    const tx = link.target.x !== undefined ? link.target.x : nodes[link.target].x;
+                    const ty = link.target.y !== undefined ? link.target.y : nodes[link.target].y;
 
                     linkGroup.append("text")
                         .attr("class", "weight-label")
