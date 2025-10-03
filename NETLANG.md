@@ -20,9 +20,12 @@ NetLang is a simple domain-specific language for implementing and visualizing gr
 ```
 let x = 10
 let name = "Alice"
-let visited = {}
-let distances = {0: 0}
+let visited = set()          // Empty set
+let distances = {}           // Empty map (for use with put/get)
+let initial_dist = {0: 0}    // Map with initial values
 ```
+
+**Note:** Empty `{}` creates a map. For empty sets, use `set()` function.
 
 ### Control Flow
 
@@ -122,7 +125,7 @@ for i in range(0, 10) {
 ```
 // BFS from source to find shortest paths
 let source = 0
-let visited = {}
+let visited = set()
 let distances = {0: 0}
 let q = queue()
 
@@ -158,7 +161,7 @@ log("BFS complete!")
 
 ```
 // DFS traversal using recursion
-let visited = {}
+let visited = set()
 
 function dfs(node) {
     add(visited, node)
@@ -296,7 +299,7 @@ log("Bellman-Ford complete!")
 
 ```
 // Find all connected components
-let visited = {}
+let visited = set()
 let component = {}
 let comp_id = 0
 
@@ -331,7 +334,7 @@ log("Found " + comp_id + " components")
 
 ```
 // Topological sort using DFS
-let visited = {}
+let visited = set()
 let stack = array()
 
 function topo_dfs(node) {

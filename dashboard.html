@@ -982,7 +982,7 @@
         const EXAMPLES = {
             bfs: `// BFS from source node 0
 let source = 0
-let visited = {}
+let visited = set()
 let q = queue()
 
 enqueue(q, source)
@@ -1016,7 +1016,7 @@ while not is_empty(q) {
 log("BFS complete! Visited " + size(visited) + " nodes")`,
 
             dfs: `// DFS - Depth First Search from node 0
-let visited = {}
+let visited = set()
 let source = 0
 
 function dfs(node) {
@@ -1044,7 +1044,7 @@ log("DFS complete! Visited " + size(visited) + " nodes")`,
             dijkstra: `// Dijkstra's shortest path from node 0
 let source = 0
 let dist = {}
-let visited = {}
+let visited = set()
 let previous = {}
 
 // Initialize distances
@@ -1112,7 +1112,7 @@ while remaining > 0 {
 log("Dijkstra complete!")`,
 
             components: `// Find connected components
-let visited = {}
+let visited = set()
 let component = {}
 let comp_id = 0
 
