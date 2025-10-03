@@ -425,16 +425,20 @@
             <svg id="network"></svg>
             <div class="legend">
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #00ff88;"></div>
-                    <span>Online Node</span>
+                    <div class="legend-color" style="background: #ff4a4a;"></div>
+                    <span>Current Node</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ffaa00;"></div>
+                    <span>Visiting Node</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-color" style="background: #4a9eff;"></div>
-                    <span>Selected Node</span>
+                    <span>Visited Node</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #ff4a4a;"></div>
-                    <span>Offline Node</span>
+                    <div class="legend-color" style="background: #00ff88; width: 30px; height: 3px; border-radius: 0;"></div>
+                    <span>Active Edge</span>
                 </div>
             </div>
         </div>
@@ -1063,7 +1067,7 @@ log("BFS complete! Visited " + size(visited) + " nodes")`
                 const colorMap = {
                     'current': '#ff4a4a',
                     'visiting': '#ffaa00',
-                    'visited': '#00ff88',
+                    'visited': '#4a9eff',
                     'path': '#4a9eff'
                 };
                 nodeGroup.selectAll("g").filter(d => d.id === id)
