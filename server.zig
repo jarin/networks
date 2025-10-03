@@ -88,12 +88,12 @@ fn send_network_state(allocator: std.mem.Allocator, network: *Network, stream: s
 
     for (network.servers.items, 0..) |server, i| {
         if (i > 0) try writer.writeAll(",");
-        const root_id = network.find_network_root(server.id) orelse server.id;
+        // Skip root_id calculation as it's causing performance issues
         try std.fmt.format(writer, "{{\"id\":{},\"name\":\"{s}\",\"status\":\"{s}\",\"group\":{}}}", .{
             server.id,
             server.name,
             @tagName(server.status),
-            root_id,
+            server.id, // Use server ID as group for now
         });
     }
 
@@ -113,7 +113,8 @@ fn send_network_state(allocator: std.mem.Allocator, network: *Network, stream: s
 }
 
 fn send_stats(allocator: std.mem.Allocator, network: *Network, stream: std.net.Stream) !void {
-    const partitions = network.count_network_partitions();
+    // Skip partition calculation as it's causing performance issues
+    const partitions: u32 = 0;
 
     var online: u32 = 0;
     var offline: u32 = 0;

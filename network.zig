@@ -61,6 +61,7 @@ pub const Network = struct {
 
     pub fn deinit(self: *Network) void {
         for (self.servers.items) |server| {
+            self.allocator.free(server.name);
             self.lct.destroy_node(server.lct_node);
         }
         self.servers.deinit();
@@ -69,7 +70,8 @@ pub const Network = struct {
 
     pub fn add_server(self: *Network, name: []const u8, status: ServerStatus) !u32 {
         const lct_node = try self.lct.create_node(@intCast(self.next_id));
-        const server = Server.init(self.next_id, name, status, lct_node);
+        const name_copy = try self.allocator.dupe(u8, name);
+        const server = Server.init(self.next_id, name_copy, status, lct_node);
         try self.servers.append(server);
         const id = self.next_id;
         self.next_id += 1;
