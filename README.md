@@ -1,150 +1,155 @@
-# Dynamic Network Connectivity Monitor
+# NetLang - Network Algorithm Visualization Language
 
-A real-time network connectivity monitoring system built with Zig and visualized using D3.js. This project demonstrates the use of Link-Cut Trees for efficient dynamic connectivity queries in a network topology.
+NetLang is a domain-specific language for implementing and visualizing graph/network algorithms with real-time visual feedback. Built with TypeScript for the interpreter and Zig for the backend server.
 
 ## Features
 
-### Core Data Structure
-- **Link-Cut Tree**: O(log n) amortized dynamic connectivity
-- Splay tree-based implementation with lazy propagation
-- Path aggregation and LCA queries
-- Dynamic link/cut operations
+### Language & Interpreter
+- **Complete DSL**: Custom language with lexer, parser, and async interpreter
+- **TypeScript implementation**: Type-safe interpreter prevents falsy value bugs
+- **Rich data structures**: Sets, maps, queues, priority queues, arrays
+- **Control flow**: if/else, while, for, functions, recursion
+- **Infinite loop protection**: Automatic timeout and iteration limits
 
-### Network Management
-- Add/remove servers dynamically
-- Track server status (online, degraded, offline)
-- Connect/disconnect servers
-- Real-time connectivity queries
-- Network partition detection
-- Path length calculations
+### Algorithm Visualization
+- **Real-time execution**: Watch algorithms run step-by-step with configurable delays
+- **Graph primitives**: neighbors(), nodes(), edges(), weight()
+- **Visualization API**: highlight_node(), highlight_edge(), set labels
+- **Built-in examples**: BFS, DFS, Dijkstra, Connected Components
 
-### Visualization
-- Interactive D3.js force-directed graph
-- Real-time network topology updates
-- Drag-and-drop node repositioning
-- Color-coded server status
-- Network statistics dashboard
-- Auto-refresh every 5 seconds
+### Network Building
+- **Dynamic networks**: Create networks with adjustable connectivity (sparse to dense)
+- **Weight-based layout**: Nodes arrange based on edge weights and capacity
+- **Interactive editing**: Add nodes/edges manually or generate random networks
+- **Force simulation**: D3.js physics-based automatic layout
 
-## Architecture
+## Quick Start
 
-```
-├── lct.zig           - Link-Cut Tree implementation
-├── network.zig       - Network connectivity layer
-├── server.zig        - HTTP API server
-├── dashboard.html    - D3.js visualization frontend
-└── demo.zig          - Basic LCT demonstration
-```
+### Prerequisites
+- Zig compiler
+- Node.js and npm (for TypeScript compilation)
 
-## API Endpoints
+### Building
 
-### GET `/api/network`
-Returns the full network state with nodes and links in D3.js-compatible format.
-
-**Response:**
-```json
-{
-  "nodes": [
-    {"id": 0, "name": "web-1", "status": "online", "group": 0}
-  ],
-  "links": [
-    {"source": 0, "target": 1}
-  ]
-}
-```
-
-### GET `/api/stats`
-Returns network statistics.
-
-**Response:**
-```json
-{
-  "servers": 5,
-  "links": 4,
-  "partitions": 1,
-  "online": 4,
-  "offline": 0,
-  "degraded": 1
-}
-```
-
-### POST `/api/server`
-Add a new server to the network.
-
-**Request:**
-```json
-{
-  "name": "web-3",
-  "status": "online"
-}
-```
-
-### POST `/api/link`
-Connect two servers.
-
-**Request:**
-```json
-{
-  "from": 0,
-  "to": 1
-}
-```
-
-### POST `/api/disconnect`
-Disconnect a server from its parent.
-
-**Request:**
-```json
-{
-  "server": 2
-}
-```
-
-## Usage
-
-### Run the Basic Demo
+1. Install dependencies:
 ```bash
-zig run demo.zig
+npm install
 ```
 
-### Run the Network Monitor Server
+2. Build TypeScript:
 ```bash
-zig build-exe server.zig
-./server
+npm run build
 ```
 
-Then open your browser to `http://127.0.0.1:8080`
+3. Run the server:
+```bash
+zig run server.zig
+```
 
-## Use Cases
+4. Open browser to http://127.0.0.1:8080
 
-1. **Network Topology Monitoring**: Track data center connectivity in real-time
-2. **Partition Detection**: Identify network splits and isolated components
-3. **Path Analysis**: Find communication paths between servers
-4. **Capacity Planning**: Visualize network structure for optimization
-5. **Failure Simulation**: Test network resilience by disconnecting nodes
+## Project Structure
 
-## Link-Cut Tree Operations
+```
+├── src/
+│   └── netlang.ts       # TypeScript source (lexer, parser, interpreter)
+├── dist/
+│   ├── netlang.js       # Compiled JavaScript
+│   └── netlang.d.ts     # TypeScript definitions
+├── dashboard.html       # Main UI with D3.js visualization
+├── server.zig          # HTTP API server
+├── network.zig         # Network data structure with Link-Cut Tree
+├── NETLANG.md          # Language specification
+└── IMPROVEMENTS.md     # Roadmap and enhancement ideas
+```
 
-- **access(node)**: Makes the path from root to node a preferred path
-- **link(child, parent)**: Connects two trees
-- **cut(node)**: Removes edge between node and its parent
-- **find_root(node)**: Returns the root of the tree containing node
-- **connected(a, b)**: Checks if two nodes are in the same tree
-- **lca(a, b)**: Finds lowest common ancestor
-- **path_size(from, to)**: Returns number of nodes on path
+## NetLang Example
 
-## Performance
+### Breadth-First Search
 
-All operations have **O(log n) amortized** time complexity through splay tree rotations.
+```netlang
+let source = 0
+let visited = set()
+let q = queue()
 
-## Implementation Details
+enqueue(q, source)
+add(visited, source)
+highlight_node(source, "current")
 
-The Link-Cut Tree maintains a forest of trees where:
-- Each tree is represented as a set of preferred paths
-- Preferred paths are stored as splay trees
-- Path parent pointers connect different splay trees
-- Lazy reversal flags support efficient re-rooting
+while not is_empty(q) {
+    let current = dequeue(q)
+    highlight_node(current, "visiting")
+    log("Visiting node " + current)
+
+    for neighbor in neighbors(current) {
+        if not has(visited, neighbor) {
+            add(visited, neighbor)
+            enqueue(q, neighbor)
+            highlight_edge(current, neighbor, "active")
+            sleep(50)
+        }
+    }
+
+    highlight_node(current, "visited")
+}
+
+log("BFS complete!")
+```
+
+See [NETLANG.md](NETLANG.md) for full language specification and more examples.
+
+## Development
+
+### TypeScript Development
+
+Watch mode for automatic recompilation:
+```bash
+npm run watch
+```
+
+Clean build artifacts:
+```bash
+npm run clean
+```
+
+## TypeScript Migration Benefits
+
+The migration to TypeScript provides:
+
+- **Type safety**: Eliminates falsy value bugs (e.g., node ID 0 being treated as false)
+- **Better IDE support**: Auto-completion, refactoring, and inline documentation
+- **Compile-time error detection**: Catch bugs before runtime
+- **Self-documenting code**: Type annotations make the API clear
+
+### Key Interfaces
+
+```typescript
+interface GraphAPI {
+    nodes(): number[];
+    neighbors(id: number): number[];
+    weight(from: number, to: number): number | null;
+    highlightNode(id: number, color: string): void;
+    highlightEdge(from: number, to: number, color: string): void;
+    log(message: string): void;
+    sleep(ms: number): Promise<void>;
+}
+```
+
+## Roadmap
+
+See [IMPROVEMENTS.md](IMPROVEMENTS.md) for:
+- 10+ prioritized enhancement recommendations
+- TypeScript migration analysis
+- New feature ideas (algorithm library, debugger, code editor, etc.)
+- Priority ranking by impact and effort
+
+Top priorities:
+1. ✅ TypeScript migration (completed)
+2. Enhanced error reporting with line context
+3. Monaco/CodeMirror code editor integration
+4. Graph import/export (GraphML, DOT, JSON)
+5. Performance metrics and analytics
 
 ## License
 
-This is a demonstration project for educational purposes.
+MIT - Educational demonstration project
