@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+server
+*.o
+*.exe
+zig-cache/
+zig-out/
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+README.md
+improvements.md
+
+# Tests
+test/
+tests/
+
+# CI/CD (will be added separately)
+.github/
+
+# Node modules (if any)
+node_modules/
+
+# TypeScript source (compiled to dist/)
+src/
+tsconfig.json
+package.json
+package-lock.json
+
+# Misc
+.DS_Store
+.env
+.env.local

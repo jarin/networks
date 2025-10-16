@@ -38,7 +38,8 @@ pub fn main() !void {
 fn handle_request(allocator: std.mem.Allocator, network: *Network, connection: std.net.Server.Connection) !void {
     defer connection.stream.close();
 
-    var buffer: [4096]u8 = undefined;
+    // Increased buffer size to handle large network creation requests (256KB)
+    var buffer: [262144]u8 = undefined;
     const bytes_read = try connection.stream.read(&buffer);
 
     if (bytes_read == 0) return;
@@ -63,6 +64,8 @@ fn handle_request(allocator: std.mem.Allocator, network: *Network, connection: s
         try send_stats(allocator, network, connection.stream);
     } else if (std.mem.eql(u8, method, "POST") and std.mem.startsWith(u8, path, "/api/server")) {
         try add_server_endpoint(allocator, network, connection.stream, body);
+    } else if (std.mem.eql(u8, method, "POST") and std.mem.startsWith(u8, path, "/api/bulk-link")) {
+        try bulk_link_servers_endpoint(allocator, network, connection.stream, body);
     } else if (std.mem.eql(u8, method, "POST") and std.mem.startsWith(u8, path, "/api/link")) {
         try link_servers_endpoint(allocator, network, connection.stream, body);
     } else if (std.mem.eql(u8, method, "POST") and std.mem.startsWith(u8, path, "/api/disconnect")) {
@@ -75,6 +78,10 @@ fn handle_request(allocator: std.mem.Allocator, network: *Network, connection: s
         try send_html_dashboard(connection.stream);
     } else if (std.mem.eql(u8, method, "GET") and std.mem.eql(u8, path, "/netlang.js")) {
         try send_netlang_js(connection.stream);
+    } else if (std.mem.eql(u8, method, "GET") and std.mem.startsWith(u8, path, "/health")) {
+        try send_health(allocator, network, connection.stream);
+    } else if (std.mem.eql(u8, method, "GET") and std.mem.startsWith(u8, path, "/ready")) {
+        try send_readiness(allocator, network, connection.stream);
     } else {
         try send_404(connection.stream);
     }
@@ -243,6 +250,99 @@ fn link_servers_endpoint(allocator: std.mem.Allocator, network: *Network, stream
     try stream.writeAll(response);
 }
 
+fn bulk_link_servers_endpoint(allocator: std.mem.Allocator, network: *Network, stream: std.net.Stream, body: []const u8) !void {
+    _ = allocator;
+
+    // Parse JSON array of links: {"links": [{"from": 0, "to": 1, "weight": 5}, ...]}
+    // Simple parser for this specific format
+    var links_created: u32 = 0;
+    var pos: usize = 0;
+
+    // Find the "links" array
+    const links_start = std.mem.indexOf(u8, body, "\"links\":");
+    if (links_start == null) {
+        try send_error(stream, "Invalid JSON: missing 'links' array");
+        return;
+    }
+
+    // Find the opening bracket of the array
+    pos = links_start.? + 8;
+    while (pos < body.len and body[pos] != '[') : (pos += 1) {}
+    if (pos >= body.len) {
+        try send_error(stream, "Invalid JSON: malformed links array");
+        return;
+    }
+    pos += 1; // Skip '['
+
+    // Parse each link object
+    while (pos < body.len) {
+        // Skip whitespace
+        while (pos < body.len and (body[pos] == ' ' or body[pos] == '\n' or body[pos] == '\r' or body[pos] == '\t')) : (pos += 1) {}
+
+        // Check for end of array
+        if (pos >= body.len or body[pos] == ']') break;
+
+        // Expect '{'
+        if (body[pos] != '{') break;
+        pos += 1;
+
+        // Parse from, to, and weight
+        var from_id: ?u32 = null;
+        var to_id: ?u32 = null;
+        var weight: f32 = 1.0;
+
+        // Find all fields within this object
+        const obj_end = std.mem.indexOfPos(u8, body, pos, "}") orelse break;
+        const obj_slice = body[pos..obj_end];
+
+        // Parse "from"
+        if (std.mem.indexOf(u8, obj_slice, "\"from\":")) |from_start| {
+            const from_value_start = from_start + 7;
+            var from_end = from_value_start;
+            while (from_end < obj_slice.len and obj_slice[from_end] >= '0' and obj_slice[from_end] <= '9') : (from_end += 1) {}
+            from_id = std.fmt.parseInt(u32, obj_slice[from_value_start..from_end], 10) catch null;
+        }
+
+        // Parse "to"
+        if (std.mem.indexOf(u8, obj_slice, "\"to\":")) |to_start| {
+            const to_value_start = to_start + 5;
+            var to_end = to_value_start;
+            while (to_end < obj_slice.len and obj_slice[to_end] >= '0' and obj_slice[to_end] <= '9') : (to_end += 1) {}
+            to_id = std.fmt.parseInt(u32, obj_slice[to_value_start..to_end], 10) catch null;
+        }
+
+        // Parse "weight" (optional)
+        if (std.mem.indexOf(u8, obj_slice, "\"weight\":")) |weight_start| {
+            const weight_value_start = weight_start + 9;
+            var weight_end = weight_value_start;
+            while (weight_end < obj_slice.len and
+                  ((obj_slice[weight_end] >= '0' and obj_slice[weight_end] <= '9') or
+                   obj_slice[weight_end] == '.')) : (weight_end += 1) {}
+            weight = std.fmt.parseFloat(f32, obj_slice[weight_value_start..weight_end]) catch 1.0;
+        }
+
+        // Create the link if we have valid from and to
+        if (from_id != null and to_id != null) {
+            network.connect_servers(from_id.?, to_id.?, weight) catch {};
+            links_created += 1;
+        }
+
+        // Move past this object
+        pos += obj_end - pos + 1;
+
+        // Skip comma
+        while (pos < body.len and (body[pos] == ',' or body[pos] == ' ' or body[pos] == '\n' or body[pos] == '\r' or body[pos] == '\t')) : (pos += 1) {}
+    }
+
+    var json_buf: [128]u8 = undefined;
+    const json = try std.fmt.bufPrint(&json_buf, "{{\"success\":true,\"links_created\":{}}}", .{links_created});
+
+    var response_buf: [256]u8 = undefined;
+    const response = try std.fmt.bufPrint(&response_buf, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{s}", .{ json.len, json });
+
+    try stream.writeAll(response);
+}
+
 fn disconnect_server_endpoint(allocator: std.mem.Allocator, network: *Network, stream: std.net.Stream, body: []const u8) !void {
     _ = allocator;
 
@@ -370,4 +470,28 @@ fn send_netlang_js(stream: std.net.Stream) !void {
 
     try stream.writeAll(response);
     try stream.writeAll(js);
+}
+
+fn send_health(allocator: std.mem.Allocator, network: *Network, stream: std.net.Stream) !void {
+    var json = std.ArrayList(u8).init(allocator);
+    defer json.deinit();
+
+    const writer = json.writer();
+    try std.fmt.format(writer, "{{\"status\":\"ok\",\"nodes\":{},\"uptime\":\"healthy\"}}", .{network.servers.items.len});
+
+    var response_buf: [256]u8 = undefined;
+    const response = try std.fmt.bufPrint(&response_buf, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{s}", .{ json.items.len, json.items });
+
+    try stream.writeAll(response);
+}
+
+fn send_readiness(allocator: std.mem.Allocator, network: *Network, stream: std.net.Stream) !void {
+    _ = allocator;
+    _ = network;
+
+    const json = "{\"status\":\"ready\"}";
+    var response_buf: [256]u8 = undefined;
+    const response = try std.fmt.bufPrint(&response_buf, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\n\r\n{s}", .{ json.len, json });
+
+    try stream.writeAll(response);
 }

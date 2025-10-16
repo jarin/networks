@@ -1,3 +1,53 @@
 [tools]
 node = "latest"
 uv = "latest"
+
+[tasks.build]
+description = "Build the Zig server (release mode)"
+run = "zig build-exe server.zig -O ReleaseFast -mcpu=baseline"
+
+[tasks.build-dev]
+description = "Build the Zig server (debug mode)"
+run = "zig build-exe server.zig -mcpu=baseline"
+
+[tasks.run]
+description = "Run the server"
+run = "./server"
+depends = ["build"]
+
+[tasks.dev]
+description = "Build and run the server in development mode"
+run = "./server"
+depends = ["build-dev"]
+
+[tasks.clean]
+description = "Clean build artifacts"
+run = "rm -f server server.o zig-cache -rf"
+
+[tasks."docker:build"]
+description = "Build Docker image"
+run = "docker build -t netlang:latest ."
+
+[tasks."docker:run"]
+description = "Run Docker container"
+run = "docker run -p 8080:8080 netlang:latest"
+
+[tasks."docker:build-run"]
+description = "Build and run Docker container"
+run = "docker build -t netlang:latest . && docker run -p 8080:8080 netlang:latest"
+
+[tasks."ts:build"]
+description = "Build TypeScript files"
+run = "npm run build"
+
+[tasks."ts:watch"]
+description = "Watch and build TypeScript files"
+run = "npm run watch"
+
+[tasks.test-health]
+description = "Test health endpoint"
+run = "curl -f http://localhost:8080/health"
+
+[tasks.all]
+description = "Build both TypeScript and Zig server"
+run = ["npm run build", "zig build-exe server.zig -O ReleaseFast -mcpu=baseline"]

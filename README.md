@@ -41,12 +41,26 @@ npm install
 npm run build
 ```
 
-3. Run the server:
+3. Build and run the server:
 ```bash
-zig run server.zig
+# Using mise (recommended)
+mise run dev
+
+# Or manually (note: -mcpu=baseline ensures compatibility)
+zig build-exe server.zig -O ReleaseFast -mcpu=baseline && ./server
 ```
 
-4. Open browser to http://127.0.0.1:8080
+4. Open browser to http://localhost:8080
+
+### Using mise Tasks
+
+```bash
+mise run build          # Build Zig server (release)
+mise run dev            # Build and run (development)
+mise run docker:build   # Build Docker image
+mise run docker:run     # Run Docker container
+mise run all            # Build everything
+```
 
 ## Project Structure
 
@@ -98,6 +112,53 @@ log("BFS complete!")
 
 See [NETLANG.md](NETLANG.md) for full language specification and more examples.
 
+## Production Deployment
+
+### Docker
+
+```bash
+# Build Docker image
+docker build -t netlang:latest .
+
+# Run container
+docker run -p 8080:8080 netlang:latest
+```
+
+### Health Endpoints
+
+- `GET /health` - Liveness probe (returns node count and status)
+- `GET /ready` - Readiness probe
+
+### Deployment Platforms
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed guides:
+
+- **DigitalOcean App Platform** - $5/month, fully managed
+- **DigitalOcean Droplet** - $6/month, VPS with more control
+- **Hetzner Cloud** - €4.15/month, best price/performance
+
+### GitHub Actions
+
+Automatic Docker builds and security scanning on every push to `main`:
+- Pushes to GitHub Container Registry (`ghcr.io`)
+- Multi-arch support (amd64/arm64)
+- Trivy security scanning
+
+## API Endpoints
+
+### Network Management
+- `GET /api/network` - Get full network state
+- `GET /api/stats` - Network statistics
+- `POST /api/server` - Add a node
+- `POST /api/link` - Create an edge
+- `POST /api/bulk-add` - Add multiple nodes
+- `POST /api/bulk-link` - Create multiple edges (bulk)
+- `POST /api/clear` - Clear the network
+
+### Health & Monitoring
+- `GET /health` - Liveness probe
+- `GET /ready` - Readiness probe
+
 ## Development
 
 ### TypeScript Development
@@ -143,12 +204,65 @@ See [IMPROVEMENTS.md](IMPROVEMENTS.md) for:
 - New feature ideas (algorithm library, debugger, code editor, etc.)
 - Priority ranking by impact and effort
 
-Top priorities:
-1. ✅ TypeScript migration (completed)
-2. Enhanced error reporting with line context
-3. Monaco/CodeMirror code editor integration
-4. Graph import/export (GraphML, DOT, JSON)
-5. Performance metrics and analytics
+Recent completions:
+1. ✅ TypeScript migration
+2. ✅ Enhanced error reporting (line context, "Did you mean?" suggestions)
+3. ✅ Bulk API endpoints for performance
+4. ✅ Docker & CI/CD ready
+
+Next priorities:
+1. Monaco/CodeMirror code editor integration
+2. Graph import/export (GraphML, DOT, JSON)
+3. Performance metrics and analytics
+4. Step-by-step debugger
+
+## Troubleshooting
+
+### "Illegal hardware instruction" error
+
+If you get this error when running the server:
+```
+illegal hardware instruction  zig run server.zig
+```
+
+**Cause 1**: Stack overflow from large buffer allocation in ReleaseFast mode.
+**Cause 2**: CPU architecture mismatch.
+
+**Solution**:
+```bash
+# Clean rebuild with correct settings
+rm -f server
+zig build-exe server.zig -O ReleaseFast -mcpu=baseline
+./server
+```
+
+Or use mise (already configured correctly):
+```bash
+mise run build
+mise run run
+```
+
+**Note**: If you still have issues, check `server.zig` line 42 - the buffer should be `[262144]u8` (256KB), not larger. Stack-allocated buffers >1MB can cause crashes with optimizations enabled.
+
+### "Lexer is not defined" in browser
+
+**Cause**: Browser can't find the global Lexer class.
+
+**Solution**: The dist/netlang.js should have browser exports. Rebuild:
+```bash
+npm run build
+cp netlang.js dist/netlang.js  # Ensure enhanced version is used
+zig build-exe server.zig -O ReleaseFast -mcpu=baseline
+```
+
+### Large networks only partially connected
+
+**Cause**: Server buffer too small for bulk operations.
+
+**Solution**: Already fixed - server has 256KB buffer. Just restart:
+```bash
+./server
+```
 
 ## License
 

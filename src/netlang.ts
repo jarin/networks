@@ -287,133 +287,133 @@ class Lexer {
 // PARSER
 // ============================================================================
 
-export interface ASTNode {
+interface ASTNode {
     type: string;
 }
 
-export interface Program extends ASTNode {
+interface Program extends ASTNode {
     type: 'Program';
     statements: Statement[];
 }
 
-export interface LetStatement extends ASTNode {
+interface LetStatement extends ASTNode {
     type: 'LetStatement';
     name: string;
     value: Expression;
 }
 
-export interface AssignStatement extends ASTNode {
+interface AssignStatement extends ASTNode {
     type: 'AssignStatement';
     name: string;
     value: Expression;
 }
 
-export interface IfStatement extends ASTNode {
+interface IfStatement extends ASTNode {
     type: 'IfStatement';
     condition: Expression;
     thenBlock: Statement[];
     elseBlock: Statement[] | null;
 }
 
-export interface WhileStatement extends ASTNode {
+interface WhileStatement extends ASTNode {
     type: 'WhileStatement';
     condition: Expression;
     body: Statement[];
 }
 
-export interface ForStatement extends ASTNode {
+interface ForStatement extends ASTNode {
     type: 'ForStatement';
     variable: string;
     iterable: Expression;
     body: Statement[];
 }
 
-export interface FunctionDecl extends ASTNode {
+interface FunctionDecl extends ASTNode {
     type: 'FunctionDecl';
     name: string;
     params: string[];
     body: Statement[];
 }
 
-export interface ReturnStatement extends ASTNode {
+interface ReturnStatement extends ASTNode {
     type: 'ReturnStatement';
     value: Expression | null;
 }
 
-export interface BreakStatement extends ASTNode {
+interface BreakStatement extends ASTNode {
     type: 'BreakStatement';
 }
 
-export interface ContinueStatement extends ASTNode {
+interface ContinueStatement extends ASTNode {
     type: 'ContinueStatement';
 }
 
-export interface ExpressionStatement extends ASTNode {
+interface ExpressionStatement extends ASTNode {
     type: 'ExpressionStatement';
     expression: Expression;
 }
 
-export type Statement = LetStatement | AssignStatement | IfStatement | WhileStatement |
+type Statement = LetStatement | AssignStatement | IfStatement | WhileStatement |
                         ForStatement | FunctionDecl | ReturnStatement | BreakStatement |
                         ContinueStatement | ExpressionStatement;
 
-export interface BinaryOp extends ASTNode {
+interface BinaryOp extends ASTNode {
     type: 'BinaryOp';
     operator: string;
     left: Expression;
     right: Expression;
 }
 
-export interface UnaryOp extends ASTNode {
+interface UnaryOp extends ASTNode {
     type: 'UnaryOp';
     operator: string;
     operand: Expression;
 }
 
-export interface CallExpression extends ASTNode {
+interface CallExpression extends ASTNode {
     type: 'CallExpression';
     name: string;
     args: Expression[];
 }
 
-export interface MemberExpression extends ASTNode {
+interface MemberExpression extends ASTNode {
     type: 'MemberExpression';
     object: Expression;
     property: string;
 }
 
-export interface IndexExpression extends ASTNode {
+interface IndexExpression extends ASTNode {
     type: 'IndexExpression';
     object: Expression;
     index: Expression;
 }
 
-export interface Identifier extends ASTNode {
+interface Identifier extends ASTNode {
     type: 'Identifier';
     name: string;
 }
 
-export interface Literal extends ASTNode {
+interface Literal extends ASTNode {
     type: 'Literal';
     value: any;
 }
 
-export interface ArrayLiteral extends ASTNode {
+interface ArrayLiteral extends ASTNode {
     type: 'ArrayLiteral';
     elements: Expression[];
 }
 
-export interface SetLiteral extends ASTNode {
+interface SetLiteral extends ASTNode {
     type: 'SetLiteral';
     elements: Expression[];
 }
 
-export interface MapLiteral extends ASTNode {
+interface MapLiteral extends ASTNode {
     type: 'MapLiteral';
     pairs: Array<{key: string; value: Expression}>;
 }
 
-export type Expression = BinaryOp | UnaryOp | CallExpression | MemberExpression |
+type Expression = BinaryOp | UnaryOp | CallExpression | MemberExpression |
                          IndexExpression | Identifier | Literal | ArrayLiteral |
                          SetLiteral | MapLiteral;
 
@@ -748,29 +748,29 @@ class Parser {
 // INTERPRETER
 // ============================================================================
 
-export interface NetLangQueue {
+interface NetLangQueue {
     type: 'queue';
     items: any[];
 }
 
-export interface NetLangSet {
+interface NetLangSet {
     type: 'set';
     items: Set<any>;
 }
 
-export interface NetLangMap {
+interface NetLangMap {
     type: 'map';
     items: Map<any, any>;
 }
 
-export interface NetLangPriorityQueue {
+interface NetLangPriorityQueue {
     type: 'pq';
     heap: any[];
 }
 
-export type NetLangCollection = NetLangQueue | NetLangSet | NetLangMap | NetLangPriorityQueue;
+type NetLangCollection = NetLangQueue | NetLangSet | NetLangMap | NetLangPriorityQueue;
 
-export interface GraphAPI {
+interface GraphAPI {
     nodes(): number[];
     neighbors(id: number): number[];
     edges(): Array<{from: number; to: number; weight: number}>;
@@ -1146,9 +1146,12 @@ class Interpreter {
 }
 
 // Make classes available globally for browser use
+console.log('[NetLang] Loading, window exists:', typeof window !== 'undefined');
 if (typeof window !== 'undefined') {
+    console.log('[NetLang] Assigning - Lexer:', typeof Lexer, 'Parser:', typeof Parser);
     (window as any).Lexer = Lexer;
     (window as any).Parser = Parser;
     (window as any).Interpreter = Interpreter;
     (window as any).TokenType = TokenType;
+    console.log('[NetLang] Done. window.Lexer:', typeof (window as any).Lexer);
 }

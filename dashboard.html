@@ -119,6 +119,34 @@
             width: 100%;
         }
 
+        input[type="range"] {
+            padding: 0;
+            height: 6px;
+            background: #333;
+            border: none;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #00ff88;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #00ff88;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+
         button {
             cursor: pointer;
             background: #1a1a1a;
@@ -368,9 +396,13 @@
             <div class="panel-section">
                 <h3>Create Network</h3>
                 <div class="control-row">
-                    <input type="number" id="networkSize" placeholder="Number of nodes" value="8" min="2" max="1000">
-                    <input type="number" id="connectivity" placeholder="Connectivity (1=sparse, 4=dense)" value="2" min="1" max="4">
+                    <input type="text" id="networkSize" placeholder="Number of nodes" value="8">
                     <button onclick="createNetwork()">Create Network</button>
+                </div>
+                <div class="control-row" style="align-items: center; gap: 10px;">
+                    <label style="color: #888; min-width: 60px;">Density:</label>
+                    <input type="range" id="connectivity" min="1" max="4" value="2" step="1" style="flex: 1;">
+                    <span id="connectivityValue" style="color: #00ff88; min-width: 80px; font-weight: 500;">Medium</span>
                 </div>
             </div>
 
@@ -410,6 +442,19 @@
                 <div class="control-row">
                     <button onclick="removeSelected()">Remove Selected Node</button>
                     <button class="danger" onclick="clearNetwork()">Clear Network</button>
+                </div>
+                <div class="control-row">
+                    <button onclick="rebalanceLayout()">⚡ Rebalance Layout</button>
+                    <button onclick="freezeLayout()">❄️ Freeze/Unfreeze</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>Layout Settings</h3>
+                <div class="control-row" style="align-items: center; gap: 10px;">
+                    <label style="color: #888; min-width: 60px;">Spacing:</label>
+                    <input type="range" id="layoutStrength" min="100" max="1000" value="500" step="50" style="flex: 1;">
+                    <span id="layoutStrengthValue" style="color: #00ff88; min-width: 80px; font-weight: 500;">500</span>
                 </div>
             </div>
         </div>
@@ -491,6 +536,12 @@
                     <button onclick="runAlgorithm()" style="background: #00ff88; color: #0a0a0a;">Run</button>
                     <button onclick="stopAlgorithm()" style="background: #ff4a4a; color: #0a0a0a;">Stop</button>
                     <button onclick="clearHighlights()">Clear</button>
+                </div>
+                <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                    <label style="display: flex; align-items: center; gap: 6px; color: #888; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" id="ignoreOffline" checked style="cursor: pointer;">
+                        <span>Ignore offline nodes</span>
+                    </label>
                 </div>
             </div>
             <div class="console-section">
@@ -602,6 +653,7 @@
                 }
 
                 const existingEdges = new Set();
+                const linksToCreate = [];
 
                 for (let i = 0; i < count; i++) {
                     const connections = minConnections + Math.floor(Math.random() * (maxConnections - minConnections + 1));
@@ -613,17 +665,37 @@
                             Math.floor(Math.random() * count);
 
                         if (i !== target) {
-                            const edgeKey = `${i}-${target}`;
+                            // Use sorted edge key to prevent duplicates in both directions
+                            const edgeKey = i < target ? `${i}-${target}` : `${target}-${i}`;
+
                             if (!existingEdges.has(edgeKey)) {
                                 existingEdges.add(edgeKey);
                                 const weight = 1 + Math.floor(Math.random() * 10);
 
-                                await fetch('/api/link', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ from: i, to: target, weight: weight })
-                                });
+                                // Create bidirectional edges to ensure strong connectivity
+                                linksToCreate.push({ from: i, to: target, weight: weight });
+                                linksToCreate.push({ from: target, to: i, weight: weight });
                             }
+                        }
+                    }
+                }
+
+                // Create all links in batches to avoid exceeding server buffer (256KB limit)
+                // Each link is ~40 bytes in JSON, so batch size of 4000 ≈ 160KB
+                const BATCH_SIZE = 4000;
+                if (linksToCreate.length > 0) {
+                    for (let i = 0; i < linksToCreate.length; i += BATCH_SIZE) {
+                        const batch = linksToCreate.slice(i, i + BATCH_SIZE);
+                        await fetch('/api/bulk-link', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ links: batch })
+                        });
+
+                        // Show progress for large networks
+                        if (linksToCreate.length > BATCH_SIZE) {
+                            const progress = Math.min(100, Math.round((i + batch.length) / linksToCreate.length * 100));
+                            showStatus(`Creating edges... ${progress}%`);
                         }
                     }
                 }
@@ -748,6 +820,51 @@
                 }
             } catch (error) {
                 showStatus('Failed to clear network', true);
+            }
+        }
+
+        function rebalanceLayout() {
+            if (!simulation) {
+                showStatus('No network to rebalance', true);
+                return;
+            }
+            // Restart simulation with full energy for complete rebalancing
+            simulation.alpha(1.0).restart();
+            showStatus('Rebalancing layout...');
+        }
+
+        let layoutFrozen = false;
+        function freezeLayout() {
+            if (!simulation) {
+                showStatus('No network to freeze', true);
+                return;
+            }
+
+            layoutFrozen = !layoutFrozen;
+            const button = event.target;
+
+            if (layoutFrozen) {
+                simulation.stop();
+                button.textContent = '▶️ Unfreeze';
+                showStatus('Layout frozen');
+            } else {
+                simulation.alpha(0.3).restart();
+                button.textContent = '❄️ Freeze/Unfreeze';
+                showStatus('Layout unfrozen');
+            }
+        }
+
+        function updateLayoutStrength() {
+            const slider = document.getElementById('layoutStrength');
+            const label = document.getElementById('layoutStrengthValue');
+            const value = parseInt(slider.value);
+
+            label.textContent = value;
+
+            if (simulation) {
+                // Update charge force strength (negative for repulsion)
+                simulation.force("charge", d3.forceManyBody().strength(-value));
+                simulation.alpha(0.3).restart();
             }
         }
 
@@ -1197,18 +1314,45 @@ log("Found " + comp_id + " connected component(s)")`
 
         // Graph API for NetLang
         const graphAPI = {
-            nodes: () => nodes.map(n => n.id),
+            nodes: () => {
+                const ignoreOffline = document.getElementById('ignoreOffline')?.checked;
+                const filteredNodes = ignoreOffline
+                    ? nodes.filter(n => n.status !== 'offline')
+                    : nodes;
+                return filteredNodes.map(n => n.id);
+            },
             neighbors: (id) => {
-                return links
+                const ignoreOffline = document.getElementById('ignoreOffline')?.checked;
+                const neighborIds = links
                     .filter(l => getNodeId(l.source) === id)
                     .map(l => getNodeId(l.target));
+
+                if (ignoreOffline) {
+                    // Filter out offline neighbors
+                    return neighborIds.filter(nId => {
+                        const node = nodes.find(n => n.id === nId);
+                        return node && node.status !== 'offline';
+                    });
+                }
+                return neighborIds;
             },
             edges: () => {
-                return links.map(l => ({
+                const ignoreOffline = document.getElementById('ignoreOffline')?.checked;
+                const allEdges = links.map(l => ({
                     from: getNodeId(l.source),
                     to: getNodeId(l.target),
                     weight: l.weight || 1
                 }));
+
+                if (ignoreOffline) {
+                    // Filter edges where either endpoint is offline
+                    return allEdges.filter(e => {
+                        const sourceNode = nodes.find(n => n.id === e.from);
+                        const targetNode = nodes.find(n => n.id === e.to);
+                        return sourceNode?.status !== 'offline' && targetNode?.status !== 'offline';
+                    });
+                }
+                return allEdges;
             },
             weight: (from, to) => {
                 const link = links.find(l =>
@@ -1217,13 +1361,18 @@ log("Found " + comp_id + " connected component(s)")`
                 );
                 return link ? (link.weight || 1) : null;
             },
-            nodeCount: () => nodes.length,
+            nodeCount: () => {
+                const ignoreOffline = document.getElementById('ignoreOffline')?.checked;
+                return ignoreOffline
+                    ? nodes.filter(n => n.status !== 'offline').length
+                    : nodes.length;
+            },
             highlightNode: (id, color) => {
                 const colorMap = {
-                    'current': '#ff4a4a',
-                    'visiting': '#ffaa00',
-                    'visited': '#4a9eff',
-                    'path': '#4a9eff'
+                    'current': '#dd44ff',    // Magenta - distinct from offline red
+                    'visiting': '#ffaa00',   // Orange
+                    'visited': '#4a9eff',    // Blue
+                    'path': '#4a9eff'        // Blue
                 };
                 nodeGroup.selectAll("g").filter(d => d.id === id)
                     .select("circle")
@@ -1313,14 +1462,15 @@ log("Found " + comp_id + " connected component(s)")`
                 logToConsole('Compiling...');
                 const lexer = new Lexer(code);
                 const tokens = lexer.tokenize();
+                const sourceLines = lexer.sourceLines;
                 console.log('[DEBUG] Tokens:', tokens.length);
-                const parser = new Parser(tokens);
+                const parser = new Parser(tokens, sourceLines);
                 const ast = parser.parse();
                 console.log('[DEBUG] AST created');
 
                 logToConsole('Executing...');
                 console.log('[DEBUG] Creating interpreter...');
-                currentInterpreter = new Interpreter(graphAPI);
+                currentInterpreter = new Interpreter(graphAPI, sourceLines);
                 console.log('[DEBUG] Starting execution...');
                 await currentInterpreter.execute(ast);
                 console.log('[DEBUG] Execution finished');
@@ -1333,8 +1483,15 @@ log("Found " + comp_id + " connected component(s)")`
                 if (error.message === 'Algorithm stopped by user') {
                     logToConsole('--- Execution Stopped ---', true);
                 } else {
-                    logToConsole('Error: ' + error.message, true);
+                    // Use enhanced error message if available
+                    const errorMsg = error.getFormattedMessage ? error.getFormattedMessage() : error.message;
+                    logToConsole('Error: ' + errorMsg, true);
                     console.error(error);
+
+                    // Highlight error line in editor if available
+                    if (error.line) {
+                        highlightErrorLine(error.line);
+                    }
                 }
             } finally {
                 console.log('[DEBUG] Cleanup...');
@@ -1357,7 +1514,37 @@ log("Found " + comp_id + " connected component(s)")`
             logToConsole('Cleared all highlights');
         }
 
+        function highlightErrorLine(lineNumber) {
+            const editor = document.getElementById('codeEditor');
+            const lines = editor.value.split('\n');
+
+            // Scroll to error line (approximate, since textarea doesn't have precise line scroll)
+            // Calculate approximate character position
+            let charPos = 0;
+            for (let i = 0; i < lineNumber - 1 && i < lines.length; i++) {
+                charPos += lines[i].length + 1; // +1 for newline
+            }
+
+            // Set focus and selection on error line
+            editor.focus();
+            editor.setSelectionRange(charPos, charPos + (lines[lineNumber - 1]?.length || 0));
+            editor.scrollTop = Math.max(0, (lineNumber - 3) * 20); // Approximate scroll
+        }
+
+        // Update connectivity slider label
+        function updateConnectivityLabel() {
+            const slider = document.getElementById('connectivity');
+            const label = document.getElementById('connectivityValue');
+            const labels = ['', 'Sparse', 'Medium', 'Dense', 'Very Dense'];
+            label.textContent = labels[slider.value] || 'Medium';
+        }
+
+        // Add slider event listeners
+        document.getElementById('connectivity').addEventListener('input', updateConnectivityLabel);
+        document.getElementById('layoutStrength').addEventListener('input', updateLayoutStrength);
+
         // Initial load
+        updateConnectivityLabel();
         fetchNetwork();
         loadExample(); // Load default BFS example
     </script>
