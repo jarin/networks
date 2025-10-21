@@ -1,4 +1,5 @@
 # NetLang - Network Algorithm Visualization Language
+experiment, for learning zig and link-cut trees. It may also be purty slop. I don't know yet.
 
 NetLang is a domain-specific language for implementing and visualizing graph/network algorithms with real-time visual feedback. Built with TypeScript for the interpreter and Zig for the backend server.
 
